@@ -1,0 +1,1 @@
+import{d as e,o,a,w as s,b as t}from"./index-ztFxyYMZ.js";import{M as i}from"./MainLayout.DRLZxSEz.js";import{M as r}from"./ModulePlaceholder.SMuxNZUD.js";import"./_plugin-vue_export-helper.DFOkL3hw.js";const p=e({__name:"index",setup:e=>(e,p)=>(o(),a(i,{"active-menu":"coinShop"},{default:s((()=>[t(r,{title:"大师币商店",description:"查看大师币商店兑换内容。"})])),_:1}))});export{p as default};

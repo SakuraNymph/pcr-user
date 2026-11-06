@@ -1,0 +1,102 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "PCR 作业站"
+			}
+		},
+		{
+			"path": "pages/jobs/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "作业管理" }
+		},
+		{
+			"path": "pages/three-hit-set/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "三刀套餐" }
+		},
+		{
+			"path": "pages/six-hit-set/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "六刀套餐" }
+		},
+		{
+			"path": "pages/coin-shop/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "大师币商店" }
+		},
+		{
+			"path": "pages/gacha-stats/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "抽卡统计" }
+		},
+		{
+			"path": "pages/account/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "我的账号" }
+		},
+		{
+			"path": "pages/profile/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "个人中心" }
+		},
+		{
+			"path": "pages/guild/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "我的公会" }
+		},
+		{
+			"path": "pages/guild/search/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "搜索公会" }
+		},
+		{
+			"path": "pages/guild/detail/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "公会详情" }
+		},
+		{
+			"path": "pages/guild/invitations/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "公会邀请" }
+		},
+		{
+			"path": "pages/guild/applications/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "加入申请" }
+		},
+		{
+			"path": "pages/guild/schedule/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "公会排刀表" }
+		},
+		{
+			"path": "pages/help/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "使用说明" }
+		},
+		{
+			"path": "pages/schedule/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "共享排刀表" }
+		},
+		{
+			"path": "pages/tutorial/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "使用教程" }
+		},
+		{
+			"path": "pages/bug-report/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "BUG反馈" }
+		},
+		{
+			"path": "pages/support/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "支持作者" }
+		},
+		{
+			"path": "pages/login/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "登录" }
+		},
+		{
+			"path": "pages/register/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "注册" }
+		},
+		{
+			"path": "pages/team-links-demo/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "作业链接交互演示" }
+		}
+	],
+	"globalStyle": {
+		"navigationStyle": "custom",
+		"navigationBarTitleText": "PCR 作业站",
+		"navigationBarBackgroundColor": "#00142d",
+		"backgroundColor": "#00142d"
+	},
+	"uniIdRouter": {}
+}

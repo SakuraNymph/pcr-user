@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "Node",
+		"strict": false,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"lib": ["ESNext", "DOM"],
+		"types": ["@dcloudio/types"]
+	},
+	"include": ["**/*.ts", "**/*.d.ts", "**/*.vue"],
+	"exclude": ["unpackage", "node_modules"]
+}

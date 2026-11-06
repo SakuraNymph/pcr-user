@@ -1,0 +1,7 @@
+{
+	"name": "pcr-user",
+	"private": true,
+	"devDependencies": {
+		"@dcloudio/types": "3.4.32"
+	}
+}
