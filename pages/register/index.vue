@@ -17,11 +17,11 @@
 			</button>
 		</view>
 		<view class="field-label">密码</view>
-		<input v-model="password" class="auth-input" type="text" password maxlength="32" placeholder="请设置 8–16 位密码" />
+		<input v-model="password" class="auth-input" type="text" password maxlength="16" placeholder="请设置 6–16 位密码" />
 		<view class="field-label">确认密码</view>
-		<input v-model="confirmPassword" class="auth-input" type="text" password maxlength="32" placeholder="请再次输入密码" />
+		<input v-model="confirmPassword" class="auth-input" type="text" password maxlength="16" placeholder="请再次输入密码" />
 		<view class="field-label">昵称</view>
-		<input v-model="nickname" class="auth-input" type="text" maxlength="64" placeholder="请输入昵称（最多 32 个字符）" />
+		<input v-model="nickname" class="auth-input" type="text" maxlength="8" placeholder="请输入昵称（最多 8 个字符）" />
 		<view class="submit-button" :class="{ disabled: submitting }" @click="submit">
 			{{ submitting ? '注册中...' : '注册' }}
 		</view>
@@ -119,16 +119,16 @@ function validateForm(): boolean {
 		return false;
 	}
 	const passwordLength = Array.from(password.value).length;
-	if (passwordLength < 8 || passwordLength > 16) {
-		uni.showToast({ title: '密码长度需为 8–16 位', icon: 'none' });
+	if (passwordLength < 6 || passwordLength > 16) {
+		uni.showToast({ title: '密码长度需为 6–16 位', icon: 'none' });
 		return false;
 	}
 	if (password.value !== confirmPassword.value) {
 		uni.showToast({ title: '两次输入的密码不一致', icon: 'none' });
 		return false;
 	}
-	if (Array.from(normalizedNickname).length > 32) {
-		uni.showToast({ title: '昵称不能超过 32 个字符', icon: 'none' });
+	if (Array.from(normalizedNickname).length > 8) {
+		uni.showToast({ title: '昵称不能超过 8 个字符', icon: 'none' });
 		return false;
 	}
 	return true;

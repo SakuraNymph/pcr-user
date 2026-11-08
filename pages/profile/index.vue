@@ -48,7 +48,7 @@
 							<view class="identity-name">{{ displayNickname }}</view>
 							<view class="identity-meta">
 								<text class="status-pill">正式用户</text>
-								<text class="identity-id">UID {{ user.id }}</text>
+								<text class="identity-id">UID {{ user.public_uid ?? user.id }}</text>
 							</view>
 						</view>
 

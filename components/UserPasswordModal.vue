@@ -41,7 +41,7 @@
 							type="text"
 							password
 							maxlength="16"
-							placeholder="请输入 8–16 位新密码"
+							placeholder="请输入 6–16 位新密码"
 							:disabled="submitting"
 						/>
 					</view>
@@ -62,7 +62,7 @@
 
 					<view v-if="errorText" class="profile-error">{{ errorText }}</view>
 					<view v-else class="profile-hint">
-						新密码长度为 8–16 位，且不能与原密码相同。
+						新密码长度为 6–16 位，且不能与原密码相同。
 					</view>
 				</template>
 
@@ -116,7 +116,7 @@
 								type="text"
 								password
 								maxlength="16"
-								placeholder="请输入 8–16 位新密码"
+								placeholder="请输入 6–16 位新密码"
 								:disabled="resettingPassword"
 							/>
 						</view>
@@ -239,7 +239,7 @@ const modalSubtitle = computed(() => {
 const canSubmit = computed(() => (
 	!submitting.value
 	&& currentPassword.value.length > 0
-	&& newPassword.value.length >= 8
+	&& newPassword.value.length >= 6
 	&& newPassword.value.length <= 16
 	&& confirmPassword.value.length > 0
 	&& newPassword.value === confirmPassword.value
@@ -275,7 +275,7 @@ const canForgotSubmit = computed(() => {
 	}
 	return (
 		!resettingPassword.value
-		&& resetPassword.value.length >= 8
+		&& resetPassword.value.length >= 6
 		&& resetPassword.value.length <= 16
 		&& resetPassword.value === resetPasswordConfirmation.value
 	);
@@ -400,8 +400,8 @@ function validate(): string {
 	if (!currentPassword.value) {
 		return '请输入原密码';
 	}
-	if (newPassword.value.length < 8 || newPassword.value.length > 16) {
-		return '新密码长度必须为 8–16 位';
+	if (newPassword.value.length < 6 || newPassword.value.length > 16) {
+		return '新密码长度必须为 6–16 位';
 	}
 	if (!confirmPassword.value) {
 		return '请再次输入新密码';
@@ -416,8 +416,8 @@ function validate(): string {
 }
 
 function validateResetPassword(): string {
-	if (resetPassword.value.length < 8 || resetPassword.value.length > 16) {
-		return '新密码长度必须为 8–16 位';
+	if (resetPassword.value.length < 6 || resetPassword.value.length > 16) {
+		return '新密码长度必须为 6–16 位';
 	}
 	if (!resetPasswordConfirmation.value) {
 		return '请再次输入新密码';

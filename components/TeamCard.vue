@@ -150,6 +150,7 @@ const props = withDefaults(defineProps<{
 	deletePending?: boolean;
 	rolesInteractive?: boolean;
 	showRemark?: boolean;
+	linksPerPage?: number;
 }>(), {
 	showAction: true,
 	showEdit: false,
@@ -193,7 +194,7 @@ const bossCode = computed(() => {
 	return `${letter}${sort}`;
 });
 const currentPage = ref(0);
-const linksPerPage = ref(resolveLinksPerPage(uni.getSystemInfoSync().windowWidth));
+const linksPerPage = ref(props.linksPerPage ?? resolveLinksPerPage(uni.getSystemInfoSync().windowWidth));
 
 const pageCount = computed(() => Math.max(
 	1,
@@ -222,6 +223,10 @@ function resolveLinksPerPage(windowWidth: number): number {
 }
 
 function updateLinksPerPage(): void {
+	if (props.linksPerPage !== undefined) {
+		return;
+	}
+
 	const nextValue = resolveLinksPerPage(uni.getSystemInfoSync().windowWidth);
 
 	if (nextValue !== linksPerPage.value) {

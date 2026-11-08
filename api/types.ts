@@ -12,6 +12,7 @@ export interface UserProfile {
 	status: number;
 	is_subscribe?: boolean;
 	email?: string;
+	public_uid?: number | null;
 	country?: string | null;
 	province?: string | null;
 	city?: string | null;

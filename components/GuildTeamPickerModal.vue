@@ -24,17 +24,12 @@
 
 				<view class="boss-tabs">
 					<view
+						v-for="boss in bosses"
+						:key="boss.sort"
 						class="boss-tab"
-						:class="{ active: selectedBoss === 0 }"
-						@click="selectedBoss = 0"
-					>全部</view>
-					<view
-						v-for="boss in [1, 2, 3, 4, 5]"
-						:key="boss"
-						class="boss-tab"
-						:class="{ active: selectedBoss === boss }"
-						@click="selectedBoss = boss"
-					>{{ boss }}王</view>
+						:class="{ active: selectedBoss === boss.sort }"
+						@click="selectedBoss = boss.sort"
+					>{{ boss.sort }}王</view>
 				</view>
 			</view>
 
@@ -56,6 +51,8 @@
 					>
 						<TeamCard
 							:team="team"
+							:boss="bossFor(team)"
+							:links-per-page="2"
 							:added="false"
 							:show-action="false"
 							:roles-interactive="false"
@@ -80,8 +77,9 @@
 import { computed, onMounted, ref } from 'vue';
 import TeamCard from './TeamCard.vue';
 import { getGuildTeamOptions } from '../api/guild';
+import { getCurrentBosses } from '../api/boss';
 import { errorMessage } from '../api/errors';
-import type { GuildTeamOptionStage, Team } from '../api/types';
+import type { Boss, GuildTeamOptionStage, Team } from '../api/types';
 
 const props = withDefaults(defineProps<{
 	guildId: number;
@@ -107,16 +105,34 @@ const stages = ref<GuildTeamOptionStage[]>([
 	{ stage: 4, name: 'D阶段' },
 ]);
 const selectedStage = ref<2 | 3 | 4>(2);
-const selectedBoss = ref(0);
+const selectedBoss = ref(1);
+const bosses = ref<Boss[]>([]);
 
 const filteredTeams = computed(() => teams.value.filter((team) => (
 	Number(team.stage) === selectedStage.value
-	&& (selectedBoss.value === 0 || Number(team.boss) === selectedBoss.value)
+	&& Number(team.boss) === selectedBoss.value
 )));
+
+function bossFor(team: Team): Boss | undefined {
+	return bosses.value.find((boss) => Number(boss.sort) === Number(team.boss));
+}
 
 onMounted(() => {
 	void loadOptions();
+	void loadBosses();
 });
+
+async function loadBosses(): Promise<void> {
+	try {
+		const response = await getCurrentBosses();
+		if (!response || response.status !== 0 || !Array.isArray(response.data)) return;
+		bosses.value = response.data
+			.slice()
+			.sort((a, b) => Number(a.sort) - Number(b.sort));
+	} catch {
+		// Boss info is optional decoration; ignore failures.
+	}
+}
 
 async function loadOptions(): Promise<void> {
 	loading.value = true;
@@ -325,6 +341,97 @@ function close(): void {
 	border-color: rgba(240, 106, 115, 0.45);
 	background: var(--danger-soft);
 	color: var(--danger);
+}
+
+@media screen and (min-width: 701px) {
+	.team-picker-body :deep(.team-roles) {
+		gap: 3px;
+		padding: 4px;
+	}
+
+	.team-picker-body :deep(.team-roles .role-avatar-wrap) {
+		width: 40px;
+		height: 40px;
+	}
+
+	.team-picker-body :deep(.role-seat-empty) {
+		width: 40px;
+		height: 40px;
+		flex-basis: 40px;
+	}
+
+	.team-picker-body :deep(.links-grid) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		max-width: none;
+	}
+}
+
+@media screen and (min-width: 1000px) {
+	.team-picker-body :deep(.team-boss) {
+		flex: 1 1 100px;
+		gap: 8px;
+		padding: 4px 6px;
+	}
+
+	.team-picker-body :deep(.boss-cover-wrap) {
+		width: 72px;
+		height: 72px;
+	}
+
+	.team-picker-body :deep(.boss-detail-name) {
+		display: none;
+	}
+
+	.team-picker-body :deep(.boss-number) {
+		display: none;
+	}
+
+	.team-picker-body :deep(.team-mode) {
+		flex: 1 1 70px;
+	}
+
+	.team-picker-body :deep(.team-damage) {
+		flex: 1 1 120px;
+		gap: 6px;
+		padding: 5px 4px;
+	}
+
+	.team-picker-body :deep(.team-roles) {
+		flex: 1 1 300px;
+		gap: 4px;
+		padding: 6px;
+	}
+
+	.team-picker-body :deep(.team-roles .role-avatar-wrap) {
+		width: 50px;
+		height: 50px;
+	}
+
+	.team-picker-body :deep(.role-seat-empty) {
+		width: 50px;
+		height: 50px;
+		flex-basis: 50px;
+	}
+
+	.team-picker-body :deep(.team-links) {
+		padding: 8px 14px 8px 10px;
+		flex: 0 0 300px;
+	}
+
+	.team-picker-body :deep(.links-grid) {
+		display: flex;
+		flex-wrap: nowrap;
+		grid-template-columns: none;
+		max-width: none;
+		gap: 10px;
+		justify-content: flex-start;
+	}
+
+	.team-picker-body :deep(.link-row) {
+		flex: 0 0 78px;
+		width: 78px;
+		min-width: 78px;
+	}
 }
 
 @media screen and (max-width: 700px) {

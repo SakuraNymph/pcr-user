@@ -66,11 +66,18 @@
 								@click="shiftMonth(-1)"
 							>›</view>
 						</view>
-						<view
-							v-if="schedule.permissions.can_clear_schedule"
-							class="clear-button"
-							@click="confirmClear"
-						>一键清空本月</view>
+						<view class="toolbar-actions">
+							<view
+								v-if="schedule.permissions.can_clear_schedule"
+								class="clear-button"
+								@click="confirmClear"
+							>一键清空本月</view>
+							<view
+								v-if="schedule.permissions.can_edit_others && schedule.is_current_month"
+								class="copy-button"
+								@click="openCopy"
+							>复制排刀</view>
+						</view>
 					</view>
 				</view>
 
@@ -78,10 +85,13 @@
 					当前正在查看历史月份。历史排刀对所有成员只读，会长和副会长也不能修改或清空。
 				</view>
 
-				<view class="schedule-legend">
-					<text>主刀与返还刀均只保存作业 ID，展示时读取最新作业数据。</text>
-					<text>返还刀仅在对应主刀为 B/C 阶段时允许编辑；D 阶段会自动清空并锁定。</text>
-				</view>
+				<GuildScheduleQuickPanel
+					:schedule="schedule"
+					:guild-id="guildId"
+					:viewer-uid="viewerUid"
+					@updated="handleScheduleUpdated"
+					@reload="loadSchedule"
+				/>
 
 				<GuildScheduleTable
 					:schedule="schedule"
@@ -89,6 +99,14 @@
 					:viewer-uid="viewerUid"
 					@updated="handleScheduleUpdated"
 					@reload="loadSchedule"
+				/>
+
+				<GuildScheduleCopyModal
+					v-if="copyVisible"
+					:schedule="schedule"
+					:guild-id="guildId"
+					@close="closeCopy"
+					@updated="handleCopyUpdated"
 				/>
 			</template>
 		</view>
@@ -100,6 +118,8 @@ import { computed, ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import MainLayout from '../../../layouts/MainLayout.vue';
 import GuildScheduleTable from '../../../components/GuildScheduleTable.vue';
+import GuildScheduleQuickPanel from '../../../components/GuildScheduleQuickPanel.vue';
+import GuildScheduleCopyModal from '../../../components/GuildScheduleCopyModal.vue';
 import {
 	clearGuildSchedule,
 	getGuildSchedule,
@@ -119,6 +139,7 @@ const loading = ref(false);
 const loadError = ref('');
 const selectedMonth = ref('');
 const clearPending = ref(false);
+const copyVisible = ref(false);
 let scheduleRequestSequence = 0;
 
 const viewerUid = computed(() => Number(authState.user?.id || 0));
@@ -193,6 +214,19 @@ function handleScheduleUpdated(next: GuildSchedule): void {
 	selectedMonth.value = next.month;
 	loading.value = false;
 	loadError.value = '';
+}
+
+function openCopy(): void {
+	copyVisible.value = true;
+}
+
+function closeCopy(): void {
+	copyVisible.value = false;
+}
+
+function handleCopyUpdated(next: GuildSchedule): void {
+	closeCopy();
+	handleScheduleUpdated(next);
 }
 
 function handleMonthPicker(event: { detail: { value: string | number } }): void {
@@ -395,7 +429,8 @@ function confirmClear(): void {
 }
 
 .back-button,
-.clear-button {
+.clear-button,
+.copy-button {
 	min-height: 34px;
 	padding: 0 11px;
 	display: flex;
@@ -413,6 +448,19 @@ function confirmClear(): void {
 	border-color: rgba(240, 106, 115, 0.48);
 	background: var(--danger-soft);
 	color: var(--danger);
+}
+
+.copy-button {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	color: var(--accent-text);
+}
+
+.toolbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 
 .month-controls {
@@ -467,16 +515,6 @@ function confirmClear(): void {
 	line-height: 1.55;
 }
 
-.schedule-legend {
-	margin: 9px 2px;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 5px 16px;
-	color: var(--text-faint);
-	font-size: 10px;
-	line-height: 1.5;
-}
-
 @keyframes schedule-spin {
 	to {
 		transform: rotate(360deg);
@@ -498,7 +536,8 @@ function confirmClear(): void {
 		justify-content: center;
 	}
 
-	.clear-button {
+	.clear-button,
+	.copy-button {
 		justify-content: center;
 	}
 }

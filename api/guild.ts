@@ -278,6 +278,17 @@ export async function saveGuildScheduleMember(
 	return assertSuccess(response, '保存排刀失败');
 }
 
+export async function copyGuildScheduleMember(
+	guildId: number,
+	payload: { source_uid: number; target_uid: number },
+): Promise<GuildSchedule> {
+	const response = await post<ApiEnvelope<GuildSchedule>, typeof payload>(
+		`/api/user/guilds/${guildId}/schedule/copy`,
+		payload,
+	);
+	return assertSuccess(response, '复制排刀失败');
+}
+
 export async function clearGuildSchedule(
 	guildId: number,
 	month?: string,

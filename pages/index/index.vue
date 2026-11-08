@@ -1217,4 +1217,30 @@ export default defineComponent({
 		gap: 3px;
 	}
 }
+@media screen and (orientation: portrait) and (min-width: 701px) and (max-width: 1719px) {
+	.header-boss {
+		width: 13%;
+		padding: 0 8px;
+	}
+	.header-team {
+		width: 31%;
+	}
+	:deep(.team-boss) {
+		width: 13%;
+		gap: 7px;
+		padding: 5px 7px;
+	}
+	:deep(.boss-cover-wrap) {
+		width: 74px;
+		height: 66px;
+	}
+	:deep(.boss-detail) {
+		display: none;
+	}
+	:deep(.team-roles) {
+		width: 31%;
+		gap: 2px;
+		padding: 4px;
+	}
+}
 </style>
