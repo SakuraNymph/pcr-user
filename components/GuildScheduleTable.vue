@@ -801,7 +801,8 @@ async function persistSlot(teamId: number | null): Promise<void> {
 }
 
 .h-row {
-	height: 42px;
+	height: auto;
+	min-height: 42px;
 	border-top: 1px solid var(--border-subtle);
 	background: var(--bg-panel-soft);
 	transition: background 0.16s ease, box-shadow 0.16s ease;
@@ -866,12 +867,14 @@ async function persistSlot(teamId: number | null): Promise<void> {
 
 .member-nickname {
 	min-width: 0;
-	overflow: hidden;
+	overflow: visible;
 	color: var(--text-primary);
 	font-size: 12px;
 	font-weight: 800;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+	white-space: normal;
+	word-break: break-word;
 }
 
 .merged-cell {
@@ -1028,7 +1031,8 @@ async function persistSlot(teamId: number | null): Promise<void> {
 
 @media screen and (min-width: 901px) {
 	.h-row {
-		height: 62px;
+		height: auto;
+		min-height: 62px;
 	}
 
 	.boss-select.is-multiline {

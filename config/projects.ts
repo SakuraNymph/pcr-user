@@ -3,8 +3,8 @@
  */
 export const openSourceRepositories = {
 	pcrAdmin: 'https://github.com/SakuraNymph/pcr-admin',
-	userClient: '',
-	backendApi: '',
+	userClient: 'https://github.com/SakuraNymph/pcr-user',
+	backendApi: 'https://github.com/SakuraNymph/pcr-api',
 } as const;
 
 export interface OpenSourceProject {
