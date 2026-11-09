@@ -450,8 +450,7 @@ function requestClose(): void {
 }
 
 .role-card:not(.selected) .role-avatar {
-	filter: grayscale(100%) brightness(0.72);
-	opacity: 0.78;
+	opacity: 0.4;
 }
 
 .role-card.selected .role-avatar {

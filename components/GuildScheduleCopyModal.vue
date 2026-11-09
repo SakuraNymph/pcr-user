@@ -536,18 +536,18 @@ function close(): void {
 }
 
 .preview-role-avatar {
-	width: 26px;
-	height: 26px;
-	flex: 0 0 26px;
+	width: 39px;
+	height: 39px;
+	flex: 0 0 39px;
 	border: 1px solid rgba(83, 190, 255, 0.35);
 	border-radius: 5px;
 	background: var(--bg-subtle);
 }
 
 .preview-role-seat {
-	width: 26px;
-	height: 26px;
-	flex: 0 0 26px;
+	width: 39px;
+	height: 39px;
+	flex: 0 0 39px;
 	box-sizing: border-box;
 	border: 1px dashed var(--border-default);
 	border-radius: 5px;

@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import GuildTeamPickerModal from './GuildTeamPickerModal.vue';
 import { saveGuildScheduleMember } from '../api/guild';
 import { errorMessage } from '../api/errors';
@@ -103,6 +103,7 @@ const saving = ref(false);
 const collapsed = ref(false);
 const pickerVisible = ref(false);
 const activeKey = ref<SlotKey | null>(null);
+const isDesktop = ref(uni.getSystemInfoSync().windowWidth > 700);
 
 const viewerRow = computed<GuildScheduleMember | null>(() => (
 	props.schedule.members.find((member) => member.uid === props.viewerUid) ?? null
@@ -142,7 +143,16 @@ const pickerTitle = computed(() => {
 
 onMounted(() => {
 	collapsed.value = !allEmpty.value;
+	uni.onWindowResize(handleWindowResize);
 });
+
+onBeforeUnmount(() => {
+	uni.offWindowResize(handleWindowResize);
+});
+
+function handleWindowResize(event: { size: { windowWidth: number } }): void {
+	isDesktop.value = event.size.windowWidth > 700;
+}
 
 function toggleCollapsed(): void {
 	collapsed.value = !collapsed.value;
@@ -183,7 +193,11 @@ function cellText(key: SlotKey): string {
 function cellHead(key: SlotKey): string {
 	const slot = slotOf(key);
 	if (!slot || !slot.team) return '';
-	return `${stageName(Number(slot.team.stage))} · ${Number(slot.team.boss)}王`;
+	if (isDesktop.value) {
+		const damage = Number(slot.team.damage || 0).toLocaleString('en-US');
+		return `${stageName(Number(slot.team.stage))} ${Number(slot.team.boss)}王 ${damage} 万`;
+	}
+	return `${stageName(Number(slot.team.stage)).replace('阶段', '')}${Number(slot.team.boss)}`;
 }
 
 function cellRoleSlots(key: SlotKey): Array<TeamRole | null> {
@@ -528,6 +542,16 @@ async function persist(key: SlotKey, teamId: number | null): Promise<void> {
 		padding: 6px 10px;
 		gap: 8px;
 		flex-wrap: nowrap;
+	}
+
+	.cell-role-avatar,
+	.cell-role-seat {
+		height: 26px;
+		max-width: 26px;
+	}
+
+	.boss-select.is-multiline {
+		min-height: 46px;
 	}
 
 	.gqp-body {

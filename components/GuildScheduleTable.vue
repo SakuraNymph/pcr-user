@@ -6,6 +6,45 @@
 				<text>{{ saveStateText }}</text>
 			</view>
 
+			<view class="info-controls">
+				<view
+					class="info-check"
+					:class="{ active: showStage }"
+					@click="showStage = !showStage"
+				>
+					<text class="info-check-box">{{ showStage ? '☑' : '☐' }}</text>
+					<text>阶段</text>
+				</view>
+				<view
+					class="info-check"
+					:class="{ active: showBoss }"
+					@click="showBoss = !showBoss"
+				>
+					<text class="info-check-box">{{ showBoss ? '☑' : '☐' }}</text>
+					<text>BOSS</text>
+				</view>
+				<view
+					class="info-check"
+					:class="{ active: showDamage }"
+					@click="showDamage = !showDamage"
+				>
+					<text class="info-check-box">{{ showDamage ? '☑' : '☐' }}</text>
+					<text>伤害</text>
+				</view>
+				<view class="layout-toggle info-mode">
+					<view
+						class="layout-option"
+						:class="{ active: infoMode === 'compact' }"
+						@click="infoMode = 'compact'"
+					>缩略信息</view>
+					<view
+						class="layout-option"
+						:class="{ active: infoMode === 'detail' }"
+						@click="infoMode = 'detail'"
+					>详细信息</view>
+				</view>
+			</view>
+
 			<view class="layout-toggle">
 				<view
 					class="layout-option"
@@ -68,11 +107,6 @@
 							<view class="name-cell">
 								<view class="member-name">
 									<text class="member-nickname">{{ memberLabel(member) }}</text>
-									<text v-if="member.uid === viewerUid" class="member-self-tag">我</text>
-								</view>
-								<view class="member-meta">
-									<text class="member-uid">UID {{ member.uid }}</text>
-									<text class="member-role">{{ member.role_name }}</text>
 								</view>
 							</view>
 							<view
@@ -88,7 +122,7 @@
 								>
 									<template v-if="cellFilled(member.slots[slotIndex])">
 										<view class="cell-summary">
-											<text class="cell-head">{{ cellHead(member.slots[slotIndex]) }}</text>
+											<text class="cell-head">{{ cellInfoText(member.slots[slotIndex]) }}</text>
 											<view class="cell-roles">
 												<template
 													v-for="(role, roleIndex) in cellRoleSlots(member.slots[slotIndex])"
@@ -124,11 +158,6 @@
 							<view class="name-cell merged-cell">
 								<view class="member-name">
 									<text class="member-nickname">{{ memberLabel(member) }}</text>
-									<text v-if="member.uid === viewerUid" class="member-self-tag">我</text>
-								</view>
-								<view class="member-meta">
-									<text class="member-uid">UID {{ member.uid }}</text>
-									<text class="member-role">{{ member.role_name }}</text>
 								</view>
 							</view>
 							<view
@@ -137,7 +166,10 @@
 								class="boss-cell"
 								:class="[entry.isReturn ? 'return-cell' : 'base-cell', `vs-${entry.key}`]"
 							>
-								<text v-if="entry.isReturn" class="return-tag">返还</text>
+								<text
+									v-if="showReturnTag(member.slots[entry.slotIndex], entry.isReturn)"
+									class="return-tag"
+								>返还</text>
 								<view
 									class="boss-select"
 									:class="cellClass(member.slots[entry.slotIndex])"
@@ -146,7 +178,7 @@
 								>
 									<template v-if="cellFilled(member.slots[entry.slotIndex])">
 										<view class="cell-summary">
-											<text class="cell-head">{{ cellHead(member.slots[entry.slotIndex]) }}</text>
+											<text class="cell-head">{{ isMobile ? cellHead(member.slots[entry.slotIndex]) : cellInfoText(member.slots[entry.slotIndex]) }}</text>
 											<view class="cell-roles">
 												<template
 													v-for="(role, roleIndex) in cellRoleSlots(member.slots[entry.slotIndex])"
@@ -187,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import GuildTeamPickerModal from './GuildTeamPickerModal.vue';
 import { saveGuildScheduleMember } from '../api/guild';
 import { errorMessage } from '../api/errors';
@@ -239,6 +271,7 @@ const emit = defineEmits<{
 }>();
 
 const GST_LAYOUT_KEY = 'pcr.guild-schedule.layout';
+const GST_INFO_KEY = 'pcr.guild-schedule.info';
 const SLOT_INDEX_KEYS: SlotKey[] = [
 	'team_1',
 	'team_2',
@@ -261,6 +294,11 @@ const VERTICAL_SLOT_ENTRIES = [
 
 const layout = ref<PlayerLayout>(readStoredLayout());
 const isMobile = ref(uni.getSystemInfoSync().windowWidth <= MOBILE_MAX_WIDTH);
+const storedInfo = readStoredInfo();
+const infoMode = ref<'detail' | 'compact'>(storedInfo.mode);
+const showStage = ref(storedInfo.stage);
+const showBoss = ref(storedInfo.boss);
+const showDamage = ref(storedInfo.damage);
 const saveState = ref<SaveState>('idle');
 const pickerVisible = ref(false);
 const activeRow = ref<GuildScheduleRow | null>(null);
@@ -317,7 +355,7 @@ function handleWindowResize(event: { size: { windowWidth: number } }): void {
 
 function readStoredLayout(): PlayerLayout {
 	try {
-		const stored = uni.getStorageSync(GST_LAYOUT_KEY);
+		const stored = uni.getStorageSync(userStorageKey(GST_LAYOUT_KEY));
 		if (stored === 'horizontal' || stored === 'vertical') {
 			return stored;
 		}
@@ -327,14 +365,57 @@ function readStoredLayout(): PlayerLayout {
 	return 'horizontal';
 }
 
+function readStoredInfo(): { mode: 'detail' | 'compact'; stage: boolean; boss: boolean; damage: boolean } {
+	try {
+		const stored = uni.getStorageSync(userStorageKey(GST_INFO_KEY)) as Record<string, unknown> | null;
+		if (stored && typeof stored === 'object') {
+			return {
+				mode: stored.mode === 'detail' ? 'detail' : 'compact',
+				stage: stored.stage !== false,
+				boss: stored.boss !== false,
+				damage: stored.damage === true,
+			};
+		}
+	} catch {
+		// Ignore local storage failures and fall back to the default info options.
+	}
+	return { mode: 'compact', stage: true, boss: true, damage: false };
+}
+
+watch([infoMode, showStage, showBoss, showDamage], () => {
+	try {
+		uni.setStorageSync(userStorageKey(GST_INFO_KEY), {
+			mode: infoMode.value,
+			stage: showStage.value,
+			boss: showBoss.value,
+			damage: showDamage.value,
+		});
+	} catch {
+		// Info persistence is optional; the current selection still applies.
+	}
+});
+
+watch(() => props.viewerUid, () => {
+	layout.value = readStoredLayout();
+	const info = readStoredInfo();
+	infoMode.value = info.mode;
+	showStage.value = info.stage;
+	showBoss.value = info.boss;
+	showDamage.value = info.damage;
+});
+
 function setLayout(value: PlayerLayout): void {
 	if (layout.value === value) return;
 	layout.value = value;
 	try {
-		uni.setStorageSync(GST_LAYOUT_KEY, value);
+		uni.setStorageSync(userStorageKey(GST_LAYOUT_KEY), value);
 	} catch {
 		// Layout persistence is optional; the current selection still applies.
 	}
+}
+
+function userStorageKey(base: string): string {
+	return `${base}.${props.viewerUid || 0}`;
 }
 
 function emptySlot(
@@ -367,7 +448,7 @@ function normalizeSlots(member: GuildScheduleMember): GuildScheduleSlot[] {
 }
 
 function memberLabel(member: GuildScheduleRow): string {
-	return member.nickname || `UID ${member.uid}`;
+	return member.nickname || '未设置昵称';
 }
 
 function slotHeader(slot: GuildScheduleSlot): string {
@@ -398,6 +479,36 @@ function cellFilled(slot: GuildScheduleSlot): boolean {
 function cellHead(slot: GuildScheduleSlot): string {
 	if (!slot.team) return '';
 	return cellLabel(slot.team);
+}
+
+function stageLetter(stage: number): string {
+	return stageName(Number(stage)).replace('阶段', '');
+}
+
+function infoParts(team: GuildScheduleTeamSnapshot): string[] {
+	const parts: string[] = [];
+	if (infoMode.value === 'detail') {
+		if (showStage.value) parts.push(stageName(Number(team.stage)));
+		if (showBoss.value) parts.push(`${Number(team.boss)}王`);
+	} else {
+		const stage = showStage.value ? stageLetter(team.stage) : '';
+		const boss = showBoss.value ? String(Number(team.boss)) : '';
+		if (stage || boss) parts.push(`${stage}${boss}`);
+	}
+	if (showDamage.value) {
+		parts.push(`${Number(team.damage || 0).toLocaleString('en-US')} 万`);
+	}
+	return parts;
+}
+
+function cellInfoText(slot: GuildScheduleSlot): string {
+	if (!slot.team) return '';
+	return infoParts(slot.team).join(' ');
+}
+
+function showReturnTag(slot: GuildScheduleSlot, isReturn: boolean): boolean {
+	if (!isReturn) return false;
+	return !cellFilled(slot);
 }
 
 function cellRoleSlots(slot: GuildScheduleSlot): Array<TeamRole | null> {
@@ -554,6 +665,43 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	box-shadow: 0 0 7px rgba(240, 106, 115, 0.7);
 }
 
+.info-controls {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.info-check {
+	min-height: 29px;
+	padding: 0 9px;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	background: rgba(0, 13, 29, 0.26);
+	color: var(--text-muted);
+	font-size: 11px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.info-check.active {
+	border-color: rgba(61, 166, 236, 0.45);
+	background: var(--bg-selected);
+	color: var(--accent-text);
+}
+
+.info-check-box {
+	font-size: 12px;
+	line-height: 1;
+}
+
+.info-mode {
+	flex: 0 0 auto;
+}
+
 .layout-toggle {
 	padding: 3px;
 	display: flex;
@@ -599,12 +747,12 @@ async function persistSlot(teamId: number | null): Promise<void> {
 }
 
 .layout-horizontal .player-grid {
-	--gst-columns: 58px minmax(84px, 0.9fr) repeat(6, minmax(104px, 1fr));
+	--gst-columns: 58px minmax(44px, 0.45fr) repeat(6, minmax(104px, 1fr));
 }
 
 .layout-vertical .player-grid {
 	min-width: 540px;
-	--gst-columns: 54px minmax(76px, 0.9fr) repeat(3, minmax(96px, 1fr));
+	--gst-columns: 54px minmax(40px, 0.45fr) repeat(3, minmax(96px, 1fr));
 }
 
 .ptable-head,
@@ -723,27 +871,6 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	font-size: 12px;
 	font-weight: 800;
 	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.member-self-tag {
-	flex: 0 0 auto;
-	padding: 0 5px;
-	border-radius: 4px;
-	background: var(--accent-soft);
-	color: var(--accent-text);
-	font-size: 10px;
-	font-weight: 700;
-}
-
-.member-meta {
-	max-width: 100%;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	overflow: hidden;
-	color: var(--text-faint);
-	font-size: 10px;
 	white-space: nowrap;
 }
 
@@ -873,30 +1000,39 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	background: var(--bg-panel-soft);
 }
 
-@media screen and (min-width: 901px) {
-	.cell-summary {
+@media screen and (min-width: 701px) {
+	.layout-horizontal .cell-summary {
 		flex-direction: column;
 		align-items: stretch;
 		gap: 3px;
 	}
 
-	.cell-roles {
+	.layout-horizontal .cell-roles {
 		width: 100%;
 		flex: 0 0 auto;
 		gap: 3px;
 	}
 
-	.h-row {
-		height: 58px;
+	.layout-vertical .cell-summary {
+		flex-direction: row;
+		align-items: center;
+		gap: 6px;
 	}
 
 	.v-group {
-		grid-template-rows: 58px 58px;
-		height: 118px;
+		grid-template-rows: auto auto;
+		height: auto;
+		min-height: 42px;
+	}
+}
+
+@media screen and (min-width: 901px) {
+	.h-row {
+		height: 62px;
 	}
 
 	.boss-select.is-multiline {
-		min-height: 50px;
+		min-height: 40px;
 	}
 
 	.cell-role-avatar,
@@ -969,7 +1105,7 @@ async function persistSlot(teamId: number | null): Promise<void> {
 
 @media screen and (max-width: 1200px) {
 	.layout-horizontal .player-grid {
-		--gst-columns: 54px minmax(74px, 0.9fr) repeat(6, minmax(94px, 1fr));
+		--gst-columns: 54px minmax(38px, 0.45fr) repeat(6, minmax(94px, 1fr));
 	}
 }
 
@@ -994,7 +1130,7 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	}
 
 	.layout-vertical .player-grid {
-		--gst-columns: 42px minmax(56px, 0.9fr) repeat(2, minmax(64px, 1fr));
+		--gst-columns: 32px minmax(46px, 0.55fr) repeat(2, minmax(88px, 1.35fr));
 	}
 
 	.ptable-head {
@@ -1015,12 +1151,30 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	}
 
 	.v-group {
-		grid-template-rows: repeat(3, 38px);
-		height: 116px;
+		grid-template-rows: repeat(3, 46px);
+		height: 140px;
 	}
 
 	.v-group .merged-cell {
 		grid-row: 1 / span 3;
+	}
+
+	.cell-summary {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 3px;
+	}
+
+	.cell-roles {
+		width: 100%;
+		flex: 0 0 auto;
+		gap: 2px;
+	}
+
+	.cell-role-avatar,
+	.cell-role-seat {
+		height: 22px;
+		max-width: 22px;
 	}
 
 	.vs-base-0 {
@@ -1064,11 +1218,10 @@ async function persistSlot(teamId: number | null): Promise<void> {
 
 	.member-nickname {
 		font-size: 11px;
-	}
-
-	.member-meta {
-		gap: 5px;
-		font-size: 9px;
+		overflow: visible;
+		text-overflow: clip;
+		white-space: normal;
+		overflow-wrap: anywhere;
 	}
 
 	.boss-cell {
