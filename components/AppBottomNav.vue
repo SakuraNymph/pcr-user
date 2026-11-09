@@ -42,8 +42,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { redirectTo, routes, type AppRoute } from '../router';
-import { externalLinks } from '../config/links';
-import { openExternalLink } from '../utils/externalLink';
 
 const props = defineProps<{ activeMenu: string }>();
 
@@ -52,7 +50,6 @@ interface NavItem {
 	label: string;
 	icon: string;
 	path: AppRoute | null;
-	externalUrl?: string;
 }
 
 const moreOpen = ref(false);
@@ -72,7 +69,7 @@ const moreItems: NavItem[] = [
 	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial },
 	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
 	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
-	{ key: 'github', label: 'GitHub', icon: '◈', path: null, externalUrl: externalLinks.github },
+	{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource },
 ];
 
 const activeGroupByMenu: Record<string, string> = {
@@ -95,6 +92,7 @@ const activeGroupByMenu: Record<string, string> = {
 	tutorial: 'more',
 	bugReport: 'more',
 	support: 'more',
+	openSource: 'more',
 };
 
 const activeKey = computed(() => (moreOpen.value ? 'more' : activeGroupByMenu[props.activeMenu] ?? ''));
@@ -110,11 +108,6 @@ function handleNav(item: NavItem): void {
 }
 
 function selectMore(item: NavItem): void {
-	if (item.externalUrl) {
-		moreOpen.value = false;
-		openExternalLink(item.externalUrl);
-		return;
-	}
 	if (!item.path) return;
 	moreOpen.value = false;
 	redirectTo(item.path);

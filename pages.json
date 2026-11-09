@@ -76,6 +76,10 @@
 			"style": { "navigationStyle": "custom", "navigationBarTitleText": "支持作者" }
 		},
 		{
+			"path": "pages/open-source/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "开源项目" }
+		},
+		{
 			"path": "pages/login/index",
 			"style": { "navigationStyle": "custom", "navigationBarTitleText": "登录" }
 		},

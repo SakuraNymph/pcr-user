@@ -43,7 +43,7 @@
 					>
 						<text class="more-menu-icon">{{ item.icon }}</text>
 						<text class="more-menu-label">{{ item.label }}</text>
-						<text v-if="item.externalUrl" class="more-menu-external">↗</text>
+						<text v-if="item.path" class="more-menu-arrow">›</text>
 					</view>
 				</view>
 			</Transition>
@@ -54,8 +54,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { redirectTo, routes, type AppRoute } from '../router';
-import { externalLinks } from '../config/links';
-import { openExternalLink } from '../utils/externalLink';
 
 const props = defineProps<{ activeMenu: string }>();
 
@@ -64,7 +62,6 @@ interface NavItem {
 	label: string;
 	icon: string;
 	path: AppRoute | null;
-	externalUrl?: string;
 	extra?: boolean;
 }
 
@@ -79,7 +76,7 @@ const menuItems: NavItem[] = [
 	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial, extra: true },
 	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport, extra: true },
 	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support, extra: true },
-	{ key: 'github', label: 'GitHub', icon: '◈', path: null, externalUrl: externalLinks.github, extra: true },
+	{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource, extra: true },
 ];
 
 const moreMenuItems: NavItem[] = [
@@ -87,10 +84,10 @@ const moreMenuItems: NavItem[] = [
 	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial },
 	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
 	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
-	{ key: 'github', label: 'GitHub', icon: '◈', path: null, externalUrl: externalLinks.github },
+	{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource },
 ];
 
-const moreMenuKeys = ['guild', 'tutorial', 'bugReport', 'support'];
+const moreMenuKeys = ['guild', 'tutorial', 'bugReport', 'support', 'openSource'];
 const moreOpen = ref(false);
 const moreMenuActive = computed(() => moreOpen.value || moreMenuKeys.includes(props.activeMenu));
 
@@ -99,10 +96,6 @@ function toggleMoreMenu(): void {
 }
 
 function handleItemClick(item: NavItem): void {
-	if (item.externalUrl) {
-		openExternalLink(item.externalUrl);
-		return;
-	}
 	if (item.path) {
 		redirectTo(item.path);
 	}
@@ -114,10 +107,6 @@ function closeMoreMenu(): void {
 
 function selectMoreItem(item: NavItem): void {
 	moreOpen.value = false;
-	if (item.externalUrl) {
-		openExternalLink(item.externalUrl);
-		return;
-	}
 	if (item.path) {
 		redirectTo(item.path);
 	}
@@ -261,7 +250,7 @@ onBeforeUnmount(() => {
 	flex: 1;
 }
 
-.more-menu-external {
+.more-menu-arrow {
 	color: var(--text-faint);
 	font-size: 13px;
 }

@@ -17,6 +17,7 @@ export const routes = {
 	tutorial: '/pages/tutorial/index',
 	bugReport: '/pages/bug-report/index',
 	support: '/pages/support/index',
+	openSource: '/pages/open-source/index',
 	login: '/pages/login/index',
 	register: '/pages/register/index',
 	teamLinksDemo: '/pages/team-links-demo/index',
