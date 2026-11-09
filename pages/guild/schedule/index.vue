@@ -42,6 +42,7 @@
 								</text>
 							</view>
 						</view>
+						<view class="back-button back-button-inline" @click="goBack">‹ 公会详情</view>
 					</view>
 
 					<view class="schedule-toolbar">
@@ -71,7 +72,7 @@
 								v-if="schedule.permissions.can_clear_schedule"
 								class="clear-button"
 								@click="confirmClear"
-							>一键清空本月</view>
+							>一键清空本月排刀</view>
 							<view
 								v-if="schedule.permissions.can_edit_others && schedule.is_current_month"
 								class="copy-button"
@@ -456,6 +457,10 @@ function confirmClear(): void {
 	color: var(--accent-text);
 }
 
+.back-button-inline {
+	display: none;
+}
+
 .toolbar-actions {
 	display: flex;
 	align-items: center;
@@ -528,17 +533,41 @@ function confirmClear(): void {
 
 	.schedule-toolbar {
 		align-items: stretch;
+		gap: 6px;
 	}
 
 	.month-controls {
 		order: 1;
-		flex: 1;
+		width: 100%;
+		flex: 1 0 100%;
 		justify-content: center;
+	}
+
+	.back-button-inline {
+		display: flex;
+		flex: 0 0 auto;
+		margin-left: auto;
+		min-height: 30px;
+		padding: 0 9px;
+		font-size: 10px;
+	}
+
+	.schedule-toolbar .back-button {
+		display: none;
+	}
+
+	.toolbar-actions {
+		display: contents;
 	}
 
 	.clear-button,
 	.copy-button {
+		order: 3;
+		flex: 1 1 0;
+		min-width: 0;
+		padding: 0 6px;
 		justify-content: center;
+		white-space: nowrap;
 	}
 }
 </style>

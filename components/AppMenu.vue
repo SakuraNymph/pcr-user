@@ -71,12 +71,11 @@ interface NavItem {
 const menuItems: NavItem[] = [
 	{ key: 'home', label: '作业列表', icon: '⌂', path: routes.home },
 	{ key: 'jobs', label: '我的作业', icon: '☑', path: routes.jobs },
-	{ key: 'threeHitSet', label: '三刀套餐', icon: '⌘', path: routes.threeHitSet },
-	{ key: 'sixHitSet', label: '六刀套餐', icon: '♧', path: routes.sixHitSet },
+	{ key: 'threeHitSet', label: 'D面套餐', icon: '⌘', path: routes.threeHitSet },
+	{ key: 'sixHitSet', label: '满补套餐', icon: '♧', path: routes.sixHitSet },
 	{ key: 'guild', label: '我的公会', icon: '◇', path: routes.guild, extra: true },
 	{ key: 'account', label: '我的账号', icon: '♙', path: routes.account },
 	{ key: 'help', label: '使用说明', icon: '⊞', path: routes.help },
-	{ key: 'schedule', label: '共享排刀表', icon: '▦', path: routes.schedule, extra: true },
 	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial, extra: true },
 	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport, extra: true },
 	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support, extra: true },
@@ -85,14 +84,13 @@ const menuItems: NavItem[] = [
 
 const moreMenuItems: NavItem[] = [
 	{ key: 'guild', label: '我的公会', icon: '◇', path: routes.guild },
-	{ key: 'schedule', label: '共享排刀表', icon: '▦', path: routes.schedule },
 	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial },
 	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
 	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
 	{ key: 'github', label: 'GitHub', icon: '◈', path: null, externalUrl: externalLinks.github },
 ];
 
-const moreMenuKeys = ['guild', 'schedule', 'tutorial', 'bugReport', 'support'];
+const moreMenuKeys = ['guild', 'tutorial', 'bugReport', 'support'];
 const moreOpen = ref(false);
 const moreMenuActive = computed(() => moreOpen.value || moreMenuKeys.includes(props.activeMenu));
 

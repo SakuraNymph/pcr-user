@@ -45,7 +45,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: 'close'): void }>();
 
-const title = computed(() => (props.kind === 'three' ? '三刀套餐' : '六刀套餐'));
+const title = computed(() => (props.kind === 'three' ? 'D面套餐' : '满补套餐'));
 const displayPoolName = computed(() => props.poolName || '当前账号');
 </script>
 

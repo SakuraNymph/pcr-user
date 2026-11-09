@@ -2500,6 +2500,120 @@ function formatDamage(damage: number): string {
 	}
 }
 
+/* PC 竖屏窄窗口：隐藏 BOSS 文字，压缩 BOSS 图与伤害列，把省下的空间让给角色阵容与作业链接 */
+@media screen and (orientation: portrait) and (min-width: 701px) {
+	.three-set-filter-options {
+		width: 100%;
+		display: block;
+		overflow: visible;
+	}
+
+	.three-set-filter-bottom {
+		width: 100%;
+		min-width: 0;
+		flex-direction: column;
+		align-items: stretch;
+		justify-content: flex-start;
+		gap: 8px;
+	}
+
+	.three-set-mode-filter .three-set-choice-list,
+	.three-set-attack-filter .three-set-choice-list {
+		width: 100%;
+		min-width: 0;
+		display: grid;
+		gap: 4px;
+	}
+
+	.three-set-mode-filter .three-set-choice-list {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.three-set-attack-filter .three-set-choice-list {
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+	}
+
+	.three-set-mode-filter .three-set-choice,
+	.three-set-attack-filter .three-set-choice {
+		width: auto;
+		min-width: 0;
+		flex: none;
+		padding: 0 4px;
+	}
+
+	.three-set-hit {
+		--three-set-seat-line-gap: 14px;
+	}
+
+	.three-set-hit-boss {
+		width: auto;
+		min-width: 0;
+		gap: 8px;
+		padding: 5px 8px;
+	}
+
+	.three-set-hit-boss-detail {
+		display: none;
+	}
+
+	.three-set-boss-cover-wrap {
+		width: 64px;
+		height: 58px;
+	}
+
+	.three-set-stage-tag {
+		top: 3px;
+		left: 3px;
+		padding: 2px 5px;
+		font-size: 9px;
+	}
+
+	.three-set-hit-damage {
+		width: auto;
+		min-width: 100px;
+		flex: 0 0 100px;
+		gap: 6px;
+		padding: 4px 2px;
+		transform: none;
+	}
+
+	.three-set-hit-damage-icon {
+		font-size: 20px;
+	}
+
+	.three-set-hit-damage-value {
+		font-size: 14px;
+	}
+
+	.three-set-hit-roles {
+		width: auto;
+		min-width: 0;
+		flex: 0 0 auto;
+		padding: 6px 14px;
+		transform: none;
+	}
+
+	.three-set-role-main {
+		gap: 5px;
+	}
+
+	.three-set-borrow-group {
+		margin-left: 8px;
+		gap: 8px;
+	}
+
+	.three-set-role {
+		width: 46px;
+		height: 46px;
+		flex: 0 0 46px;
+	}
+
+	.three-set-hit-links {
+		flex: 1;
+		padding: 8px 74px 8px 14px;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.three-set-role-main .three-set-role.three-set-role-locked {
 		animation: none;

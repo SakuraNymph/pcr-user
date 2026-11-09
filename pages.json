@@ -13,11 +13,11 @@
 		},
 		{
 			"path": "pages/three-hit-set/index",
-			"style": { "navigationStyle": "custom", "navigationBarTitleText": "三刀套餐" }
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "D面套餐" }
 		},
 		{
 			"path": "pages/six-hit-set/index",
-			"style": { "navigationStyle": "custom", "navigationBarTitleText": "六刀套餐" }
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "满补套餐" }
 		},
 		{
 			"path": "pages/coin-shop/index",
@@ -62,10 +62,6 @@
 		{
 			"path": "pages/help/index",
 			"style": { "navigationStyle": "custom", "navigationBarTitleText": "使用说明" }
-		},
-		{
-			"path": "pages/schedule/index",
-			"style": { "navigationStyle": "custom", "navigationBarTitleText": "共享排刀表" }
 		},
 		{
 			"path": "pages/tutorial/index",

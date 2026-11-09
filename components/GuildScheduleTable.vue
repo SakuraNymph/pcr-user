@@ -41,11 +41,17 @@
 							>{{ header }}</view>
 						</template>
 						<template v-else>
-							<view
-								v-for="header in VERTICAL_HEADERS"
-								:key="header"
-								class="head-cell boss-head-cell"
-							>{{ header }}</view>
+							<template v-if="isMobile">
+								<view class="head-cell boss-head-cell">整刀</view>
+								<view class="head-cell boss-head-cell">补偿刀</view>
+							</template>
+							<template v-else>
+								<view
+									v-for="header in VERTICAL_HEADERS"
+									:key="header"
+									class="head-cell boss-head-cell"
+								>{{ header }}</view>
+							</template>
 						</template>
 					</view>
 
@@ -83,14 +89,19 @@
 									<template v-if="cellFilled(member.slots[slotIndex])">
 										<view class="cell-summary">
 											<text class="cell-head">{{ cellHead(member.slots[slotIndex]) }}</text>
-											<view v-if="cellRoleAvatars(member.slots[slotIndex]).length" class="cell-roles">
-												<image
-													v-for="(role, roleIndex) in cellRoleAvatars(member.slots[slotIndex])"
+											<view class="cell-roles">
+												<template
+													v-for="(role, roleIndex) in cellRoleSlots(member.slots[slotIndex])"
 													:key="roleIndex"
-													class="cell-role-avatar"
-													:src="role.image_url || ''"
-													mode="aspectFill"
-												/>
+												>
+													<image
+														v-if="role"
+														class="cell-role-avatar"
+														:src="role.image_url || ''"
+														mode="aspectFill"
+													/>
+													<view v-else class="cell-role-seat" />
+												</template>
 											</view>
 										</view>
 									</template>
@@ -121,60 +132,38 @@
 								</view>
 							</view>
 							<view
-								v-for="slotIndex in VERTICAL_BASE_SLOTS"
-								:key="`${member.uid}-base-${slotIndex}`"
-								class="boss-cell base-cell"
+								v-for="entry in VERTICAL_SLOT_ENTRIES"
+								:key="`${member.uid}-${entry.key}`"
+								class="boss-cell"
+								:class="[entry.isReturn ? 'return-cell' : 'base-cell', `vs-${entry.key}`]"
 							>
+								<text v-if="entry.isReturn" class="return-tag">返还</text>
 								<view
 									class="boss-select"
-									:class="cellClass(member.slots[slotIndex])"
-									:title="cellTitle(member.slots[slotIndex])"
-									@click="openPicker(member, member.slots[slotIndex])"
+									:class="cellClass(member.slots[entry.slotIndex])"
+									:title="cellTitle(member.slots[entry.slotIndex])"
+									@click="openPicker(member, member.slots[entry.slotIndex])"
 								>
-									<template v-if="cellFilled(member.slots[slotIndex])">
+									<template v-if="cellFilled(member.slots[entry.slotIndex])">
 										<view class="cell-summary">
-											<text class="cell-head">{{ cellHead(member.slots[slotIndex]) }}</text>
-											<view v-if="cellRoleAvatars(member.slots[slotIndex]).length" class="cell-roles">
-												<image
-													v-for="(role, roleIndex) in cellRoleAvatars(member.slots[slotIndex])"
+											<text class="cell-head">{{ cellHead(member.slots[entry.slotIndex]) }}</text>
+											<view class="cell-roles">
+												<template
+													v-for="(role, roleIndex) in cellRoleSlots(member.slots[entry.slotIndex])"
 													:key="roleIndex"
-													class="cell-role-avatar"
-													:src="role.image_url || ''"
-													mode="aspectFill"
-												/>
+												>
+													<image
+														v-if="role"
+														class="cell-role-avatar"
+														:src="role.image_url || ''"
+														mode="aspectFill"
+													/>
+													<view v-else class="cell-role-seat" />
+												</template>
 											</view>
 										</view>
 									</template>
-									<template v-else>{{ cellText(member.slots[slotIndex]) }}</template>
-								</view>
-							</view>
-							<view
-								v-for="slotIndex in VERTICAL_RETURN_SLOTS"
-								:key="`${member.uid}-return-${slotIndex}`"
-								class="boss-cell return-cell"
-							>
-								<text class="return-tag">返还</text>
-								<view
-									class="boss-select"
-									:class="cellClass(member.slots[slotIndex])"
-									:title="cellTitle(member.slots[slotIndex])"
-									@click="openPicker(member, member.slots[slotIndex])"
-								>
-									<template v-if="cellFilled(member.slots[slotIndex])">
-										<view class="cell-summary">
-											<text class="cell-head">{{ cellHead(member.slots[slotIndex]) }}</text>
-											<view v-if="cellRoleAvatars(member.slots[slotIndex]).length" class="cell-roles">
-												<image
-													v-for="(role, roleIndex) in cellRoleAvatars(member.slots[slotIndex])"
-													:key="roleIndex"
-													class="cell-role-avatar"
-													:src="role.image_url || ''"
-													mode="aspectFill"
-												/>
-											</view>
-										</view>
-									</template>
-									<template v-else>{{ cellText(member.slots[slotIndex]) }}</template>
+									<template v-else>{{ cellText(member.slots[entry.slotIndex]) }}</template>
 								</view>
 							</view>
 						</view>
@@ -198,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import GuildTeamPickerModal from './GuildTeamPickerModal.vue';
 import { saveGuildScheduleMember } from '../api/guild';
 import { errorMessage } from '../api/errors';
@@ -214,9 +203,7 @@ import { stageName, teamSummary } from '../utils/guild';
 import {
 	HORIZONTAL_HEADERS,
 	HORIZONTAL_SLOT_ORDER,
-	VERTICAL_BASE_SLOTS,
 	VERTICAL_HEADERS,
-	VERTICAL_RETURN_SLOTS,
 } from '../utils/clanSchedule';
 
 type SlotKey =
@@ -262,8 +249,18 @@ const SLOT_INDEX_KEYS: SlotKey[] = [
 ];
 const CN_NUMBERS = ['一', '二', '三'];
 const SAVED_RESET_MS = 2000;
+const MOBILE_MAX_WIDTH = 700;
+const VERTICAL_SLOT_ENTRIES = [
+	{ slotIndex: 0, key: 'base-0', isReturn: false },
+	{ slotIndex: 3, key: 'return-0', isReturn: true },
+	{ slotIndex: 1, key: 'base-1', isReturn: false },
+	{ slotIndex: 4, key: 'return-1', isReturn: true },
+	{ slotIndex: 2, key: 'base-2', isReturn: false },
+	{ slotIndex: 5, key: 'return-2', isReturn: true },
+];
 
 const layout = ref<PlayerLayout>(readStoredLayout());
+const isMobile = ref(uni.getSystemInfoSync().windowWidth <= MOBILE_MAX_WIDTH);
 const saveState = ref<SaveState>('idle');
 const pickerVisible = ref(false);
 const activeRow = ref<GuildScheduleRow | null>(null);
@@ -271,7 +268,9 @@ const activeSlot = ref<GuildScheduleSlot | null>(null);
 
 let savedTimer: ReturnType<typeof setTimeout> | null = null;
 
-const effectiveLayout = computed<PlayerLayout>(() => layout.value);
+const effectiveLayout = computed<PlayerLayout>(() => (
+	isMobile.value ? 'vertical' : layout.value
+));
 const saving = computed(() => saveState.value === 'saving');
 const saveStateText = computed(() => {
 	if (saveState.value === 'saving') return '保存中…';
@@ -305,7 +304,16 @@ const pickerTitle = computed(() => {
 
 onBeforeUnmount(() => {
 	clearSavedTimer();
+	uni.offWindowResize(handleWindowResize);
 });
+
+onMounted(() => {
+	uni.onWindowResize(handleWindowResize);
+});
+
+function handleWindowResize(event: { size: { windowWidth: number } }): void {
+	isMobile.value = event.size.windowWidth <= MOBILE_MAX_WIDTH;
+}
 
 function readStoredLayout(): PlayerLayout {
 	try {
@@ -392,9 +400,14 @@ function cellHead(slot: GuildScheduleSlot): string {
 	return cellLabel(slot.team);
 }
 
-function cellRoleAvatars(slot: GuildScheduleSlot): TeamRole[] {
-	if (!slot.team || !Array.isArray(slot.team.team)) return [];
-	return slot.team.team;
+function cellRoleSlots(slot: GuildScheduleSlot): Array<TeamRole | null> {
+	const roles = slot.team && Array.isArray(slot.team.team)
+		? slot.team.team.slice(0, 5)
+		: [];
+	return [
+		...Array.from({ length: Math.max(0, 5 - roles.length) }, () => null),
+		...roles,
+	];
 }
 
 function cellClass(slot: GuildScheduleSlot): Record<string, boolean> {
@@ -739,6 +752,36 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	border-bottom: 0;
 }
 
+.vs-base-0 {
+	grid-column: 3;
+	grid-row: 1;
+}
+
+.vs-base-1 {
+	grid-column: 4;
+	grid-row: 1;
+}
+
+.vs-base-2 {
+	grid-column: 5;
+	grid-row: 1;
+}
+
+.vs-return-0 {
+	grid-column: 3;
+	grid-row: 2;
+}
+
+.vs-return-1 {
+	grid-column: 4;
+	grid-row: 2;
+}
+
+.vs-return-2 {
+	grid-column: 5;
+	grid-row: 2;
+}
+
 .boss-cell {
 	position: relative;
 	padding: 3px 5px;
@@ -803,17 +846,72 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	min-width: 0;
 	display: flex;
 	align-items: center;
+	justify-content: flex-end;
 	gap: 2px;
 	overflow: hidden;
 }
 
 .cell-role-avatar {
 	height: 18px;
-	flex: 1 1 18px;
+	flex: 1 1 0;
 	min-width: 0;
+	max-width: 18px;
+	box-sizing: border-box;
 	border: 1px solid rgba(83, 190, 255, 0.35);
 	border-radius: 4px;
 	background: var(--bg-subtle);
+}
+
+.cell-role-seat {
+	height: 18px;
+	flex: 1 1 0;
+	min-width: 0;
+	max-width: 18px;
+	box-sizing: border-box;
+	border: 1px dashed var(--border-default);
+	border-radius: 4px;
+	background: var(--bg-panel-soft);
+}
+
+@media screen and (min-width: 901px) {
+	.cell-summary {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 3px;
+	}
+
+	.cell-roles {
+		width: 100%;
+		flex: 0 0 auto;
+		gap: 3px;
+	}
+
+	.h-row {
+		height: 58px;
+	}
+
+	.v-group {
+		grid-template-rows: 58px 58px;
+		height: 118px;
+	}
+
+	.boss-select.is-multiline {
+		min-height: 50px;
+	}
+
+	.cell-role-avatar,
+	.cell-role-seat {
+		height: 28px;
+		max-width: 28px;
+	}
+}
+
+@media screen and (min-width: 1200px) {
+	.cell-role-avatar,
+	.cell-role-seat {
+		height: 34px;
+		max-width: 34px;
+	}
 }
 
 .boss-select.is-clickable {
@@ -876,6 +974,14 @@ async function persistSlot(teamId: number | null): Promise<void> {
 }
 
 @media screen and (max-width: 700px) {
+	.gst-bar {
+		display: none;
+	}
+
+	.layout-toggle {
+		display: none;
+	}
+
 	.player-table-scroll {
 		max-height: 64vh;
 		min-height: 280px;
@@ -888,7 +994,7 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	}
 
 	.layout-vertical .player-grid {
-		--gst-columns: 42px minmax(56px, 0.9fr) repeat(3, minmax(64px, 1fr));
+		--gst-columns: 42px minmax(56px, 0.9fr) repeat(2, minmax(64px, 1fr));
 	}
 
 	.ptable-head {
@@ -909,8 +1015,42 @@ async function persistSlot(teamId: number | null): Promise<void> {
 	}
 
 	.v-group {
-		grid-template-rows: 38px 38px;
-		height: 78px;
+		grid-template-rows: repeat(3, 38px);
+		height: 116px;
+	}
+
+	.v-group .merged-cell {
+		grid-row: 1 / span 3;
+	}
+
+	.vs-base-0 {
+		grid-column: 3;
+		grid-row: 1;
+	}
+
+	.vs-return-0 {
+		grid-column: 4;
+		grid-row: 1;
+	}
+
+	.vs-base-1 {
+		grid-column: 3;
+		grid-row: 2;
+	}
+
+	.vs-return-1 {
+		grid-column: 4;
+		grid-row: 2;
+	}
+
+	.vs-base-2 {
+		grid-column: 3;
+		grid-row: 3;
+	}
+
+	.vs-return-2 {
+		grid-column: 4;
+		grid-row: 3;
 	}
 
 	.seq-cell {

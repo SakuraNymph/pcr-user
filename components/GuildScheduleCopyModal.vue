@@ -15,7 +15,7 @@
 				<view class="copy-close" @click="close">×</view>
 			</view>
 
-			<view class="copy-body">
+			<view class="copy-body" @touchmove.stop>
 				<view class="member-pickers">
 					<view class="member-field">
 						<text class="field-label">来源成员</text>
@@ -87,20 +87,21 @@
 						>
 							<text class="preview-slot-name">{{ slotName(slot) }}</text>
 							<template v-if="cellFilled(slot)">
-								<text class="preview-team-label">{{ cellHead(slot) }}</text>
-								<view
-									v-if="cellRoleAvatars(slot).length"
-									class="preview-roles"
-								>
-									<image
-										v-for="(role, roleIndex) in cellRoleAvatars(slot)"
+								<text class="preview-team-label">{{ cellMeta(slot) }}</text>
+								<view class="preview-roles">
+									<template
+										v-for="(role, roleIndex) in cellRoleSlots(slot)"
 										:key="roleIndex"
-										class="preview-role-avatar"
-										:src="role.image_url || ''"
-										mode="aspectFill"
-									/>
+									>
+										<image
+											v-if="role"
+											class="preview-role-avatar"
+											:src="role.image_url || ''"
+											mode="aspectFill"
+										/>
+										<view v-else class="preview-role-seat" />
+									</template>
 								</view>
-								<text class="preview-damage">{{ cellDamage(slot) }}</text>
 							</template>
 							<text
 								v-else
@@ -182,8 +183,9 @@ const previewRows = computed<GuildScheduleSlot[][]>(() => {
 		byKey.set(slot.key, slot);
 	});
 	return [
-		['team_1', 'team_2', 'team_3'],
-		['team_1_return', 'team_2_return', 'team_3_return'],
+		['team_1', 'team_1_return'],
+		['team_2', 'team_2_return'],
+		['team_3', 'team_3_return'],
 	].map((keys) => keys
 		.map((key) => byKey.get(key))
 		.filter((slot): slot is GuildScheduleSlot => Boolean(slot)));
@@ -211,7 +213,7 @@ function memberLabel(member: GuildScheduleMember): string {
 }
 
 function slotName(slot: GuildScheduleSlot): string {
-	const base = `${CN_NUMBERS[slot.position - 1] || slot.position}刀`;
+	const base = `第${CN_NUMBERS[slot.position - 1] || slot.position}刀`;
 	return slot.kind === 'return' ? `${base}返还` : base;
 }
 
@@ -231,9 +233,19 @@ function cellHead(slot: GuildScheduleSlot): string {
 	return `${stage}${Number(slot.team.boss)}王`;
 }
 
-function cellRoleAvatars(slot: GuildScheduleSlot): TeamRole[] {
-	if (!slot.team || !Array.isArray(slot.team.team)) return [];
-	return slot.team.team;
+function cellRoleSlots(slot: GuildScheduleSlot): Array<TeamRole | null> {
+	const roles = slot.team && Array.isArray(slot.team.team)
+		? slot.team.team.slice(0, 5)
+		: [];
+	return [
+		...Array.from({ length: Math.max(0, 5 - roles.length) }, () => null),
+		...roles,
+	];
+}
+
+function cellMeta(slot: GuildScheduleSlot): string {
+	if (!slot.team) return '';
+	return `${stageName(Number(slot.team.stage))} · ${Number(slot.team.boss)}王 · ${cellDamage(slot)}`;
 }
 
 function cellDamage(slot: GuildScheduleSlot): string {
@@ -357,6 +369,8 @@ function close(): void {
 	min-height: 0;
 	padding: 14px 18px;
 	overflow-y: auto;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
 }
 
 .member-pickers {
@@ -478,7 +492,7 @@ function close(): void {
 
 .preview-row {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 7px;
 	padding: 10px 10px 0;
 }
@@ -518,23 +532,26 @@ function close(): void {
 	display: flex;
 	align-items: center;
 	gap: 3px;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 }
 
 .preview-role-avatar {
 	width: 26px;
 	height: 26px;
+	flex: 0 0 26px;
 	border: 1px solid rgba(83, 190, 255, 0.35);
 	border-radius: 5px;
 	background: var(--bg-subtle);
 }
 
-.preview-damage {
-	display: block;
-	margin-top: 5px;
-	color: var(--text-muted);
-	font-size: 11px;
-	font-weight: 700;
+.preview-role-seat {
+	width: 26px;
+	height: 26px;
+	flex: 0 0 26px;
+	box-sizing: border-box;
+	border: 1px dashed var(--border-default);
+	border-radius: 5px;
+	background: var(--bg-panel-soft);
 }
 
 .preview-slot-value {
@@ -606,6 +623,36 @@ function close(): void {
 
 	.transfer-icon {
 		display: none;
+	}
+
+	.preview-row {
+		gap: 6px;
+		padding: 8px 8px 0;
+	}
+
+	.preview-row:last-child {
+		padding-bottom: 8px;
+	}
+
+	.preview-cell {
+		padding: 5px;
+	}
+
+	.preview-team-label {
+		font-size: 10px;
+	}
+
+	.preview-roles {
+		gap: 2px;
+	}
+
+	.preview-role-avatar,
+	.preview-role-seat {
+		width: auto;
+		height: 24px;
+		flex: 1 1 0;
+		min-width: 0;
+		max-width: 24px;
 	}
 }
 </style>

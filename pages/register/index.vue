@@ -21,7 +21,7 @@
 		<view class="field-label">确认密码</view>
 		<input v-model="confirmPassword" class="auth-input" type="text" password maxlength="16" placeholder="请再次输入密码" />
 		<view class="field-label">昵称</view>
-		<input v-model="nickname" class="auth-input" type="text" maxlength="8" placeholder="请输入昵称（最多 8 个字符）" />
+		<input v-model="nickname" class="auth-input" type="text" maxlength="24" placeholder="请输入昵称（1–24 个字节）" />
 		<view class="submit-button" :class="{ disabled: submitting }" @click="submit">
 			{{ submitting ? '注册中...' : '注册' }}
 		</view>
@@ -37,6 +37,7 @@ import { errorMessage } from '../../api/errors';
 import { registerUser, sendRegisterCode } from '../../api/user';
 import AuthLayout from '../../layouts/AuthLayout.vue';
 import { navigateTo, redirectTo, routes } from '../../router';
+import { utf8ByteLength } from '../../utils/text';
 
 const email = ref('');
 const code = ref('');
@@ -95,7 +96,7 @@ async function sendCode(): Promise<void> {
 	try {
 		await sendRegisterCode(email.value.trim());
 		startCodeCountdown();
-		uni.showToast({ title: '验证码已发送，请查收邮件', icon: 'success' });
+		uni.showToast({ title: '验证码已发送', icon: 'success' });
 	} catch (error) {
 		uni.showToast({ title: errorMessage(error, '验证码发送失败，请稍后重试'), icon: 'none' });
 	} finally {
@@ -127,8 +128,8 @@ function validateForm(): boolean {
 		uni.showToast({ title: '两次输入的密码不一致', icon: 'none' });
 		return false;
 	}
-	if (Array.from(normalizedNickname).length > 8) {
-		uni.showToast({ title: '昵称不能超过 8 个字符', icon: 'none' });
+	if (utf8ByteLength(normalizedNickname) > 24) {
+		uni.showToast({ title: '昵称不能超过 24 个字节', icon: 'none' });
 		return false;
 	}
 	return true;

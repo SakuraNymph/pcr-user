@@ -391,7 +391,8 @@ export interface CardStatisticsSaveResult {
 }
 
 export interface CreateCustomTeamPayload {
-	boss: string | number;
+	/** BOSS 位置，取值 1–5。 */
+	boss: number;
 	damage: number;
 	mode: 1 | 2;
 	roles: Array<string | number>;

@@ -23,14 +23,14 @@
 					v-model="nickname"
 					class="profile-input"
 					type="text"
-					maxlength="8"
-					placeholder="请输入 2–8 个字符"
+					maxlength="24"
+					placeholder="请输入 1–24 个字节的昵称"
 					:disabled="submitting"
 					@confirm="submit"
 				/>
 				<view class="field-meta">
-					<text>昵称长度为 2–8 个字符</text>
-					<text>{{ nicknameLength }}/8</text>
+					<text>昵称长度为 1–24 个字节</text>
+					<text>{{ nicknameLength }}/24</text>
 				</view>
 				<view v-if="errorText" class="profile-error">{{ errorText }}</view>
 				<view v-else class="profile-hint">
@@ -57,6 +57,7 @@ import { computed, ref, watch } from 'vue';
 import { errorMessage } from '../api/errors';
 import { updateUserProfile } from '../api/user';
 import type { UserProfile } from '../api/types';
+import { utf8ByteLength } from '../utils/text';
 
 const props = defineProps<{
 	currentNickname: string;
@@ -72,11 +73,11 @@ const submitting = ref(false);
 const errorText = ref('');
 
 const normalizedNickname = computed(() => nickname.value.trim());
-const nicknameLength = computed(() => Array.from(normalizedNickname.value).length);
+const nicknameLength = computed(() => utf8ByteLength(normalizedNickname.value));
 const canSubmit = computed(() => (
 	!submitting.value
-	&& nicknameLength.value >= 2
-	&& nicknameLength.value <= 8
+	&& nicknameLength.value >= 1
+	&& nicknameLength.value <= 24
 	&& normalizedNickname.value !== props.currentNickname.trim()
 ));
 
@@ -97,10 +98,10 @@ async function submit(): Promise<void> {
 	if (submitting.value) return;
 
 	if (!canSubmit.value) {
-		if (nicknameLength.value < 2) {
-			errorText.value = '昵称长度不能少于 2 个字符';
-		} else if (nicknameLength.value > 8) {
-			errorText.value = '昵称长度不能超过 8 个字符';
+		if (nicknameLength.value < 1) {
+			errorText.value = '昵称长度不能少于 1 个字节';
+		} else if (nicknameLength.value > 24) {
+			errorText.value = '昵称长度不能超过 24 个字节';
 		} else if (normalizedNickname.value === props.currentNickname.trim()) {
 			errorText.value = '新昵称与当前昵称相同';
 		}

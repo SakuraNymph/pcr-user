@@ -189,6 +189,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(event: 'close'): void;
 	(event: 'saved'): void;
+	(event: 'reset'): void;
 }>();
 
 const mode = ref<PasswordModalMode>('change');
@@ -548,13 +549,13 @@ async function submitResetPassword(): Promise<void> {
 			password_confirmation: resetPasswordConfirmation.value,
 		});
 
-		uni.showToast({ title: '密码重置成功', icon: 'success' });
 		clearForgotState();
 		mode.value = 'change';
 		forgotStep.value = 1;
 		currentPassword.value = '';
 		newPassword.value = '';
 		confirmPassword.value = '';
+		emit('reset');
 	} catch (error) {
 		const message = errorMessage(error, '密码重置失败，请稍后重试');
 		forgotError.value = message;

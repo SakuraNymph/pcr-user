@@ -53,9 +53,9 @@
 						<view v-for="opt in stageOptions" :key="opt.value"
 							  class="three-set-choice"
 							  :class="{ active: selectedStage === opt.value }"
-							  @click="selectedStage = opt.value"
-							  @keydown.enter.prevent="selectedStage = opt.value"
-							  @keydown.space.prevent="selectedStage = opt.value">
+							  @click="selectStage(opt.value)"
+							  @keydown.enter.prevent="selectStage(opt.value)"
+							  @keydown.space.prevent="selectStage(opt.value)">
 							{{ opt.label }}
 						</view>
 					</view>
@@ -752,6 +752,31 @@ function toggleBoss(
 
 function toggleMode(mode: SystemSixHitMode): void {
 	applyMode(mode);
+}
+
+function selectStage(stage: SystemSixHitStage): void {
+	if (selectedStage.value === stage) {
+		return;
+	}
+
+	if (stage !== 0 && lockedIds.value.length) {
+		const invalidIds = lockedIds.value.filter((teamId) => {
+			const lockedStage = lockedTeamStages.value[teamId];
+			return (lockedStage === 2 || lockedStage === 3) && lockedStage !== stage;
+		});
+
+		if (invalidIds.length) {
+			lockedIds.value = lockedIds.value.filter((teamId) => !invalidIds.includes(teamId));
+			const nextStages = { ...lockedTeamStages.value };
+			invalidIds.forEach((teamId) => {
+				delete nextStages[teamId];
+			});
+			lockedTeamStages.value = nextStages;
+			uni.showToast({ title: '已自动解锁与当前阶段不符的作业', icon: 'none' });
+		}
+	}
+
+	selectedStage.value = stage;
 }
 
 function resetFilters(): void {
@@ -2800,6 +2825,81 @@ function formatDamage(damage: number): string {
 		box-shadow:
 			0 0 11px rgba(244, 201, 93, 0.82),
 			0 0 18px rgba(73, 190, 255, 0.5);
+	}
+}
+
+/* PC 竖屏窄窗口：隐藏 BOSS 文字，压缩 BOSS 图与伤害列，把省下的空间让给角色阵容与作业链接 */
+@media screen and (orientation: portrait) and (min-width: 701px) {
+	.three-set-hit {
+		--three-set-seat-line-gap: 14px;
+	}
+
+	.three-set-hit-boss {
+		width: auto;
+		min-width: 0;
+		gap: 8px;
+		padding: 5px 8px;
+	}
+
+	.three-set-hit-boss-detail {
+		display: none;
+	}
+
+	.three-set-boss-cover-wrap {
+		width: 64px;
+		height: 58px;
+	}
+
+	.three-set-stage-tag {
+		top: 3px;
+		left: 3px;
+		padding: 2px 5px;
+		font-size: 9px;
+	}
+
+	.three-set-hit-damage {
+		width: auto;
+		min-width: 100px;
+		flex: 0 0 100px;
+		gap: 6px;
+		padding: 4px 2px;
+		transform: none;
+	}
+
+	.three-set-hit-damage-icon {
+		font-size: 20px;
+	}
+
+	.three-set-hit-damage-value {
+		font-size: 14px;
+	}
+
+	.three-set-hit-roles {
+		width: auto;
+		min-width: 0;
+		flex: 0 0 auto;
+		padding: 6px 14px;
+		transform: none;
+	}
+
+	.three-set-role-main {
+		gap: 5px;
+	}
+
+	.three-set-borrow-group {
+		margin-left: 8px;
+		gap: 8px;
+	}
+
+	.three-set-role {
+		width: 46px;
+		height: 46px;
+		flex: 0 0 46px;
+	}
+
+	.three-set-hit-links {
+		flex: 1;
+		padding: 8px 74px 8px 14px;
 	}
 }
 

@@ -187,8 +187,8 @@
 								v-for="boss in bosses"
 								:key="boss.sort"
 								class="boss-item"
-								:class="{ selected: String(customBossId) === String(boss.id) }"
-								@click="customBossId = boss.id"
+								:class="{ selected: Number(customBossId) === Number(boss.sort) }"
+								@click="customBossId = boss.sort"
 							>
 								<image
 									v-if="boss.file_path && !failedBossImages.includes(boss.sort)"
@@ -410,7 +410,7 @@ export default defineComponent({
 			customAddVisible: false,
 			customEditingTeamId: null as string | number | null,
 			customEditingTeam: null as Team | null,
-			customBossId: '' as string | number,
+			customBossId: 0 as number,
 			customDamage: '',
 			customRemark: '',
 			customMode: 1 as 1 | 2,
@@ -633,7 +633,7 @@ export default defineComponent({
 						const formBoss = this.bosses.find(
 							(boss) => Number(boss.sort) === this.selectedBoss,
 						) ?? this.bosses[0];
-						this.customBossId = formBoss?.id ?? '';
+						this.customBossId = Number(formBoss?.sort) || 1;
 					}
 				})
 				.catch((error) => {
@@ -741,7 +741,7 @@ export default defineComponent({
 			const selectedBoss = this.bosses.find(
 				(boss) => Number(boss.sort) === this.selectedBoss,
 			);
-			this.customBossId = selectedBoss?.id ?? this.bosses[0]?.id ?? '';
+			this.customBossId = Number(selectedBoss?.sort ?? this.bosses[0]?.sort) || 1;
 			this.customDamage = '';
 			this.customRemark = '';
 			this.customMode = 1;
@@ -768,7 +768,8 @@ export default defineComponent({
 		async openEditJobList(team: Team): Promise<void> {
 			this.customEditingTeamId = team.id;
 			this.customEditingTeam = team;
-			this.customBossId = team.boss;
+			const teamBoss = this.getBoss(team.boss);
+			this.customBossId = Number(teamBoss?.sort ?? team.boss);
 			this.customDamage = String(team.damage);
 			this.customRemark = team.remark || '';
 			this.customMode = Number(team.mode) === 2 ? 2 : 1;
@@ -900,7 +901,7 @@ export default defineComponent({
 			}
 
 			const payload = {
-				boss: this.customBossId,
+				boss: Number(this.customBossId),
 				damage,
 				mode: this.customMode,
 				roles: this.customRoles.map((role) => role.id),
@@ -985,8 +986,8 @@ export default defineComponent({
 		 * 根据 BOSS 序号获取 BOSS 数据
 		 */
 		getBoss(bossKey: string | number): Boss | undefined {
-			return this.bosses.find((item) => String(item.id) === String(bossKey))
-				?? this.bosses.find((item) => Number(item.sort) === Number(bossKey));
+			return this.bosses.find((item) => Number(item.sort) === Number(bossKey))
+				?? this.bosses.find((item) => String(item.id) === String(bossKey));
 		},
 
 		/**

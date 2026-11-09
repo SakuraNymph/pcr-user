@@ -18,6 +18,7 @@
 				v-for="field in SLOT_FIELDS"
 				:key="field.key"
 				class="gqp-field"
+				:class="`gqp-field-${field.key}`"
 			>
 				<text class="gqp-field-label">{{ field.label }}</text>
 				<view
@@ -29,14 +30,19 @@
 					<template v-if="cellFilled(field.key)">
 						<view class="cell-summary">
 							<text class="cell-head">{{ cellHead(field.key) }}</text>
-							<view v-if="cellRoleAvatars(field.key).length" class="cell-roles">
-								<image
-									v-for="(role, roleIndex) in cellRoleAvatars(field.key)"
+							<view class="cell-roles">
+								<template
+									v-for="(role, roleIndex) in cellRoleSlots(field.key)"
 									:key="roleIndex"
-									class="cell-role-avatar"
-									:src="role.image_url || ''"
-									mode="aspectFill"
-								/>
+								>
+									<image
+										v-if="role"
+										class="cell-role-avatar"
+										:src="role.image_url || ''"
+										mode="aspectFill"
+									/>
+									<view v-else class="cell-role-seat" />
+								</template>
 							</view>
 						</view>
 					</template>
@@ -180,10 +186,15 @@ function cellHead(key: SlotKey): string {
 	return `${stageName(Number(slot.team.stage))} · ${Number(slot.team.boss)}王`;
 }
 
-function cellRoleAvatars(key: SlotKey): TeamRole[] {
+function cellRoleSlots(key: SlotKey): Array<TeamRole | null> {
 	const slot = slotOf(key);
-	if (!slot || !slot.team || !Array.isArray(slot.team.team)) return [];
-	return slot.team.team;
+	const roles = slot && slot.team && Array.isArray(slot.team.team)
+		? slot.team.team.slice(0, 5)
+		: [];
+	return [
+		...Array.from({ length: Math.max(0, 5 - roles.length) }, () => null),
+		...roles,
+	];
 }
 
 function cellTitle(key: SlotKey): string {
@@ -242,6 +253,7 @@ async function persist(key: SlotKey, teamId: number | null): Promise<void> {
 
 <style scoped>
 .guild-quick-panel {
+	margin-top: 10px;
 	margin-bottom: 10px;
 	border: 1px solid var(--border-default);
 	border-radius: 8px;
@@ -411,17 +423,63 @@ async function persist(key: SlotKey, teamId: number | null): Promise<void> {
 	min-width: 0;
 	display: flex;
 	align-items: center;
+	justify-content: flex-end;
 	gap: 2px;
 	overflow: hidden;
 }
 
 .cell-role-avatar {
 	height: 18px;
-	flex: 1 1 18px;
+	flex: 1 1 0;
 	min-width: 0;
+	max-width: 18px;
+	box-sizing: border-box;
 	border: 1px solid rgba(83, 190, 255, 0.35);
 	border-radius: 4px;
 	background: var(--bg-subtle);
+}
+
+.cell-role-seat {
+	height: 18px;
+	flex: 1 1 0;
+	min-width: 0;
+	max-width: 18px;
+	box-sizing: border-box;
+	border: 1px dashed var(--border-default);
+	border-radius: 4px;
+	background: var(--bg-panel-soft);
+}
+
+@media screen and (min-width: 901px) {
+	.boss-select {
+		min-height: 40px;
+	}
+
+	.boss-select.is-multiline {
+		min-height: 46px;
+	}
+
+	.cell-roles {
+		gap: 3px;
+	}
+
+	.cell-role-avatar,
+	.cell-role-seat {
+		height: 28px;
+		max-width: 28px;
+	}
+}
+
+@media screen and (min-width: 1200px) {
+	.boss-select.is-multiline {
+		min-height: 52px;
+	}
+
+	.cell-role-avatar,
+	.cell-role-seat {
+		height: 34px;
+		max-width: 34px;
+	}
 }
 
 @keyframes gqp-save-pulse {
@@ -439,17 +497,48 @@ async function persist(key: SlotKey, teamId: number | null): Promise<void> {
 	.gqp-body {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
+
+	.gqp-field-team_1 {
+		order: 1;
+	}
+
+	.gqp-field-team_1_return {
+		order: 2;
+	}
+
+	.gqp-field-team_2 {
+		order: 3;
+	}
+
+	.gqp-field-team_2_return {
+		order: 4;
+	}
+
+	.gqp-field-team_3 {
+		order: 5;
+	}
+
+	.gqp-field-team_3_return {
+		order: 6;
+	}
 }
 
 @media screen and (max-width: 700px) {
+	.gqp-bar {
+		padding: 6px 10px;
+		gap: 8px;
+		flex-wrap: nowrap;
+	}
+
 	.gqp-body {
 		padding: 4px 10px 10px;
 		gap: 8px 10px;
 	}
 
 	.gqp-count {
-		width: 100%;
-		margin-left: 0;
+		width: auto;
+		flex: 0 0 auto;
+		margin-left: auto;
 		text-align: right;
 	}
 }

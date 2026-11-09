@@ -153,6 +153,7 @@
 			:email="user?.email || ''"
 			@close="passwordModalVisible = false"
 			@saved="handlePasswordSaved"
+			@reset="handlePasswordReset"
 		/>
 	</MainLayout>
 </template>
@@ -253,6 +254,11 @@ function handleProfileSaved(updatedUser: UserProfile): void {
 }
 
 function handlePasswordSaved(): void {
+	passwordModalVisible.value = false;
+	uni.showToast({ title: '密码修改成功', icon: 'success' });
+}
+
+function handlePasswordReset(): void {
 	passwordModalVisible.value = false;
 	uni.showToast({ title: '密码修改成功', icon: 'success' });
 }

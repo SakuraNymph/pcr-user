@@ -1,12 +1,26 @@
 <template>
 	<MainLayout active-menu="account">
 		<view class="account-page" :class="{ 'is-empty-state': isAccountListEmpty }">
-			<view class="account-panel">
-				<view class="list-toolbar">
-					<view class="panel-title">我的账号</view>
+			<view class="account-hero">
+				<view>
+					<view class="account-eyebrow">MY ACCOUNTS</view>
+					<view class="account-page-title">我的账号</view>
+					<view class="account-page-description">
+						管理你的账号角色池，添加多个账号并分别配置各自持有的角色。
+					</view>
+				</view>
+				<view class="account-hero-actions">
+					<view
+						v-if="!listLoading && !listError && pools.length"
+						class="account-count"
+					>
+						{{ pools.length }} 个账号
+					</view>
 					<view class="add-button" @click="handleAddAccount">＋ 添加账号</view>
 				</view>
+			</view>
 
+			<view class="account-panel">
 				<view class="table-wrap">
 					<view class="table-header">
 						<view class="name-column">昵称</view>
@@ -536,9 +550,51 @@ function closeStatistics(): void {
 </script>
 
 <style scoped>
+.account-hero {
+	padding: 18px 20px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 16px;
+	border: 1px solid var(--border-default);
+	border-radius: 11px;
+	background:
+		radial-gradient(ellipse at 88% 0%, var(--accent-soft), transparent 52%),
+		linear-gradient(115deg, var(--bg-panel), var(--bg-panel-alt));
+}
+
+.account-eyebrow {
+	color: var(--accent-text);
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.18em;
+}
+
+.account-page-title {
+	margin-top: 5px;
+	color: var(--text-primary);
+	font-size: 24px;
+	font-weight: 800;
+}
+
+.account-page-description {
+	max-width: 680px;
+	margin-top: 7px;
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.7;
+}
+
+.account-hero-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .account-page {
 	width: 100%;
-	max-width: 1440px;
+	max-width: 1120px;
 	margin: 0 auto;
 }
 
@@ -552,11 +608,13 @@ function closeStatistics(): void {
 .account-panel {
 	width: 100%;
 	min-height: 300px;
-	padding: 22px 0;
+	margin-top: 14px;
+	padding: 0;
 	border: 1px solid rgba(44, 155, 211, 0.2);
 	border-radius: 10px;
 	background: linear-gradient(105deg, var(--bg-panel), var(--bg-panel-alt));
 	box-shadow: inset 0 0 14px rgba(24, 119, 171, 0.04);
+	overflow: hidden;
 }
 
 .account-page.is-empty-state .account-panel {
@@ -566,20 +624,13 @@ function closeStatistics(): void {
 	flex-direction: column;
 }
 
-.list-toolbar {
-	min-height: 42px;
-	margin-left: 22px;
-	margin-right: 22px;
-	margin-bottom: 16px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 14px;
-}
-
-.panel-title {
-	color: var(--text-primary);
-	font-size: 22px;
+.account-count {
+	padding: 4px 9px;
+	border: 1px solid var(--border-default);
+	border-radius: 999px;
+	background: var(--bg-subtle);
+	color: var(--text-muted);
+	font-size: 11px;
 	font-weight: 700;
 }
 
@@ -597,10 +648,9 @@ function closeStatistics(): void {
 }
 
 .table-wrap {
-	width: calc(100% + 2px);
-	margin-left: -1px;
-	border: 1px solid var(--border-default);
-	border-radius: 8px;
+	width: 100%;
+	border: 0;
+	border-radius: 0;
 	overflow: hidden;
 }
 
@@ -1229,12 +1279,7 @@ function closeStatistics(): void {
 
 @media screen and (max-width: 900px) {
 	.account-panel {
-		padding: 16px 0;
-	}
-
-	.list-toolbar {
-		margin-left: 16px;
-		margin-right: 16px;
+		padding: 0;
 	}
 
 	.table-header,
@@ -1269,20 +1314,28 @@ function closeStatistics(): void {
 }
 
 @media screen and (max-width: 700px) {
+	.account-hero {
+		padding: 15px;
+	}
+
+	.account-page-title {
+		font-size: 21px;
+	}
+
+	.account-hero-actions {
+		width: 100%;
+	}
+
+	.account-hero-actions .add-button {
+		flex: 1;
+	}
+
 	.account-panel {
 		min-height: 260px;
-		padding: 13px 0;
+		margin-top: 10px;
+		padding: 0;
 		border: 0;
 		box-shadow: none;
-	}
-
-	.list-toolbar {
-		margin-left: 13px;
-		margin-right: 13px;
-	}
-
-	.panel-title {
-		font-size: 19px;
 	}
 
 	.table-header {
@@ -1302,7 +1355,7 @@ function closeStatistics(): void {
 	}
 
 	.pool-list {
-		padding: 0 13px;
+		padding: 12px 13px 13px;
 		display: flex;
 		flex-direction: column;
 		gap: 12px;

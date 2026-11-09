@@ -33,7 +33,7 @@
 				</view>
 			</view>
 
-			<view class="team-picker-body">
+			<view class="team-picker-body" @touchmove.stop>
 				<view v-if="loading" class="picker-state">正在加载作业...</view>
 				<view v-else-if="errorText" class="picker-state error">
 					<text>{{ errorText }}</text>
@@ -267,6 +267,8 @@ function close(): void {
 	flex: 1;
 	padding: 12px;
 	overflow-y: auto;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
 }
 
 .team-option-list {

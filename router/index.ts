@@ -14,7 +14,6 @@ export const routes = {
 	guildInvitations: '/pages/guild/invitations/index',
 	guildApplications: '/pages/guild/applications/index',
 	guildSchedule: '/pages/guild/schedule/index',
-	schedule: '/pages/schedule/index',
 	tutorial: '/pages/tutorial/index',
 	bugReport: '/pages/bug-report/index',
 	support: '/pages/support/index',
