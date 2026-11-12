@@ -14,8 +14,6 @@
 		<view
 			v-if="authState.isAuthenticated"
 			class="user-menu"
-			@mouseenter="openUserMenu"
-			@mouseleave="scheduleCloseUserMenu"
 			@keydown.esc.stop="closeUserMenu"
 		>
 			<view
@@ -29,7 +27,15 @@
 				@keydown.enter.prevent="toggleUserMenu"
 				@keydown.space.prevent="toggleUserMenu"
 			>
-				<text class="user-nickname">{{ authState.user?.nickname || '用户' }}</text>
+				<image
+					v-if="avatarUrl && !avatarLoadFailed"
+					class="user-avatar"
+					:src="avatarUrl"
+					mode="aspectFill"
+					@error="handleAvatarError"
+				/>
+				<view v-else class="user-avatar user-avatar-placeholder">{{ avatarText }}</view>
+				<text class="user-nickname">{{ displayNickname }}</text>
 				<text class="user-menu-chevron">⌄</text>
 			</view>
 
@@ -39,7 +45,6 @@
 					class="user-menu-popover"
 					role="menu"
 					@click.stop
-					@mouseenter="cancelCloseUserMenu"
 				>
 					<view
 						class="user-menu-item"
@@ -52,67 +57,6 @@
 						<text class="user-menu-icon">♙</text>
 						<text class="user-menu-label">个人中心</text>
 					</view>
-					<view
-						class="user-menu-item"
-						:class="{ active: themePanelOpen }"
-						role="menuitem"
-						tabindex="0"
-						aria-haspopup="menu"
-						:aria-expanded="themePanelOpen"
-						@click="toggleThemePanel"
-						@keydown.enter.prevent="toggleThemePanel"
-						@keydown.space.prevent="toggleThemePanel"
-					>
-						<text class="user-menu-icon">◐</text>
-						<text class="user-menu-label">主题设置</text>
-						<text class="user-menu-arrow">{{ themePanelOpen ? '⌃' : '›' }}</text>
-					</view>
-					<Transition name="theme-options">
-						<view v-if="themePanelOpen" class="theme-options" role="menu">
-							<view
-								class="theme-option"
-								:class="{ selected: themeState.preference === 'dark' }"
-								role="menuitemradio"
-								tabindex="0"
-								:aria-checked="themeState.preference === 'dark'"
-								@click="selectThemePreference('dark')"
-								@keydown.enter.prevent="selectThemePreference('dark')"
-								@keydown.space.prevent="selectThemePreference('dark')"
-							>
-								<text class="theme-swatch dark-swatch"></text>
-								<text class="theme-option-label">深色</text>
-								<text v-if="themeState.preference === 'dark'" class="theme-check">✓</text>
-							</view>
-							<view
-								class="theme-option"
-								:class="{ selected: themeState.preference === 'light' }"
-								role="menuitemradio"
-								tabindex="0"
-								:aria-checked="themeState.preference === 'light'"
-								@click="selectThemePreference('light')"
-								@keydown.enter.prevent="selectThemePreference('light')"
-								@keydown.space.prevent="selectThemePreference('light')"
-							>
-								<text class="theme-swatch light-swatch"></text>
-								<text class="theme-option-label">浅色</text>
-								<text v-if="themeState.preference === 'light'" class="theme-check">✓</text>
-							</view>
-							<view
-								class="theme-option"
-								:class="{ selected: themeState.preference === 'system' }"
-								role="menuitemradio"
-								tabindex="0"
-								:aria-checked="themeState.preference === 'system'"
-								@click="selectThemePreference('system')"
-								@keydown.enter.prevent="selectThemePreference('system')"
-								@keydown.space.prevent="selectThemePreference('system')"
-							>
-								<text class="theme-swatch system-swatch"></text>
-								<text class="theme-option-label">跟随系统</text>
-								<text v-if="themeState.preference === 'system'" class="theme-check">✓</text>
-							</view>
-						</view>
-					</Transition>
 					<view class="user-menu-divider"></view>
 					<view
 						class="user-menu-item logout-item"
@@ -124,89 +68,52 @@
 						@keydown.space.prevent="confirmLogout"
 					>
 						<text class="user-menu-icon">⇥</text>
-						<text class="user-menu-label">{{ loggingOut ? '退出中...' : '退出' }}</text>
+						<text class="user-menu-label">{{ loggingOut ? '退出中...' : '退出登录' }}</text>
 					</view>
 				</view>
 			</Transition>
 		</view>
 		<view v-else class="auth-actions">
 			<view class="auth-button login-button" @click="navigateTo(routes.login)">登录</view>
-			<view class="auth-button register-button" @click="navigateTo(routes.register)">注册</view>
 		</view>
 	</view>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { authState, clearAuthenticatedSession } from '../api/identity';
 import { errorMessage, RequestError } from '../api/errors';
 import { logoutUser } from '../api/user';
 import { navigateTo, redirectTo, routes } from '../router';
-import { setThemePreference, themeState } from '../theme';
-import type { ThemePreference } from '../theme';
 
 const userMenuOpen = ref(false);
-const themePanelOpen = ref(false);
 const loggingOut = ref(false);
-let closeTimer: ReturnType<typeof setTimeout> | null = null;
+const avatarLoadFailed = ref(false);
 
-function cancelCloseUserMenu(): void {
-	if (closeTimer) {
-		clearTimeout(closeTimer);
-		closeTimer = null;
-	}
-}
+const displayNickname = computed(() => authState.user?.nickname?.trim() || '用户');
+const avatarUrl = computed(() => authState.user?.avatar_url?.trim() || '');
+const avatarText = computed(() => Array.from(displayNickname.value)[0] || '用');
 
-function openUserMenu(): void {
-	if (!supportsHover() || !authState.isAuthenticated || loggingOut.value) return;
-	cancelCloseUserMenu();
-	userMenuOpen.value = true;
-}
-
-function scheduleCloseUserMenu(): void {
-	if (!supportsHover()) return;
-	cancelCloseUserMenu();
-	if (loggingOut.value) return;
-	closeTimer = setTimeout(() => {
-		userMenuOpen.value = false;
-		themePanelOpen.value = false;
-		closeTimer = null;
-	}, 160);
-}
-
-function supportsHover(): boolean {
-	return typeof window !== 'undefined'
-		&& typeof window.matchMedia === 'function'
-		&& window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-}
+watch(avatarUrl, () => {
+	avatarLoadFailed.value = false;
+});
 
 function toggleUserMenu(): void {
 	if (!authState.isAuthenticated || loggingOut.value) return;
-	cancelCloseUserMenu();
 	userMenuOpen.value = !userMenuOpen.value;
-	if (!userMenuOpen.value) {
-		themePanelOpen.value = false;
-	}
-}
-
-function toggleThemePanel(): void {
-	themePanelOpen.value = !themePanelOpen.value;
-}
-
-function selectThemePreference(preference: ThemePreference): void {
-	setThemePreference(preference);
-	closeUserMenu();
 }
 
 function closeUserMenu(): void {
-	cancelCloseUserMenu();
 	userMenuOpen.value = false;
-	themePanelOpen.value = false;
 }
 
 function openProfile(): void {
 	closeUserMenu();
 	navigateTo(routes.profile);
+}
+
+function handleAvatarError(): void {
+	avatarLoadFailed.value = true;
 }
 
 function confirmLogout(): void {
@@ -260,7 +167,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-	cancelCloseUserMenu();
 	if (typeof document !== 'undefined') {
 		document.removeEventListener('click', handleDocumentClick);
 	}
@@ -351,6 +257,26 @@ onBeforeUnmount(() => {
 	background: rgba(2, 30, 62, 0.68);
 }
 
+.user-avatar {
+	width: 30px;
+	height: 30px;
+	flex: 0 0 30px;
+	overflow: hidden;
+	border: 1px solid rgba(127, 190, 255, 0.55);
+	border-radius: 50%;
+	background: rgba(2, 30, 62, 0.7);
+}
+
+.user-avatar-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(145deg, var(--accent-strong), #064c94);
+	color: #fff;
+	font-size: 13px;
+	font-weight: 700;
+}
+
 .user-nickname {
 	max-width: 180px;
 	overflow: hidden;
@@ -387,15 +313,6 @@ onBeforeUnmount(() => {
 	color: var(--text-primary);
 }
 
-.user-menu-popover::before {
-	position: absolute;
-	top: -11px;
-	right: 0;
-	left: 0;
-	height: 11px;
-	content: '';
-}
-
 .user-menu-item {
 	min-height: 38px;
 	padding: 0 10px;
@@ -430,70 +347,6 @@ onBeforeUnmount(() => {
 	flex: 1;
 }
 
-.user-menu-arrow {
-	color: var(--text-faint);
-	font-size: 17px;
-	line-height: 1;
-}
-
-.theme-options {
-	margin: 3px 0 5px 27px;
-	padding: 4px;
-	border: 1px solid var(--border-subtle);
-	border-radius: 7px;
-	background: var(--bg-panel-alt);
-}
-
-.theme-option {
-	min-height: 34px;
-	padding: 0 8px;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	border-radius: 5px;
-	color: var(--text-muted);
-	font-size: 12px;
-	cursor: pointer;
-}
-
-.theme-option:hover,
-.theme-option:focus,
-.theme-option:focus-visible,
-.theme-option.selected {
-	background: var(--accent-soft);
-	color: var(--text-primary);
-}
-
-.theme-swatch {
-	width: 15px;
-	height: 15px;
-	flex: 0 0 15px;
-	border: 1px solid var(--border-default);
-	border-radius: 50%;
-}
-
-.dark-swatch {
-	background: linear-gradient(145deg, #0a3158, var(--bg-page));
-}
-
-.light-swatch {
-	background: linear-gradient(145deg, #fff, #dcecff);
-}
-
-.system-swatch {
-	background: linear-gradient(135deg, #0a3158 0 50%, #dcecff 50% 100%);
-}
-
-.theme-option-label {
-	flex: 1;
-}
-
-.theme-check {
-	color: var(--accent);
-	font-size: 12px;
-	font-weight: 700;
-}
-
 .user-menu-divider {
 	height: 1px;
 	margin: 5px 7px;
@@ -520,16 +373,12 @@ onBeforeUnmount(() => {
 }
 
 .user-menu-enter-active,
-.user-menu-leave-active,
-.theme-options-enter-active,
-.theme-options-leave-active {
+.user-menu-leave-active {
 	transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
 .user-menu-enter-from,
-.user-menu-leave-to,
-.theme-options-enter-from,
-.theme-options-leave-to {
+.user-menu-leave-to {
 	opacity: 0;
 	transform: translateY(-4px);
 }
@@ -548,14 +397,6 @@ onBeforeUnmount(() => {
 	cursor: pointer;
 }
 
-.register-button {
-	border-color: #0786ff;
-	background: #087cf5;
-	color: #fff;
-	font-weight: bold;
-	box-shadow: 0 0 12px rgba(0, 119, 255, 0.38);
-}
-
 @media screen and (max-width: 700px) {
 	.top-header {
 		position: -webkit-sticky;
@@ -569,6 +410,10 @@ onBeforeUnmount(() => {
 	}
 
 	.header-navigation {
+		display: none;
+	}
+
+	.auth-actions {
 		display: none;
 	}
 
@@ -588,30 +433,27 @@ onBeforeUnmount(() => {
 		font-size: 10px;
 	}
 
-	.auth-actions {
-		gap: 5px;
-	}
-
 	.user-nickname {
-		max-width: 110px;
+		max-width: 90px;
 		font-size: 12px;
 	}
 
 	.user-menu-trigger {
 		min-height: 30px;
-		padding: 0 7px 0 9px;
+		padding: 0 7px 0 6px;
+		gap: 6px;
+	}
+
+	.user-avatar {
+		width: 26px;
+		height: 26px;
+		flex-basis: 26px;
+		font-size: 12px;
 	}
 
 	.user-menu-popover {
 		right: -4px;
 		width: min(190px, calc(100vw - 24px));
-	}
-
-	.auth-button {
-		min-width: 48px;
-		height: 30px;
-		padding: 0 9px;
-		font-size: 12px;
 	}
 }
 

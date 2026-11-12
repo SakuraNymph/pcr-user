@@ -1,38 +1,62 @@
 <template>
-	<view class="package-modal-mask" @click="emit('close')">
-		<view
-			class="package-modal"
-			role="dialog"
-			aria-modal="true"
-			:aria-label="title"
-			@click.stop
-		>
-			<view class="package-modal-header">
-				<view class="package-modal-heading">
-					<view class="package-modal-title">{{ title }}</view>
-					<view class="package-modal-subtitle">{{ displayPoolName }}</view>
+	<view class="package-modal-host">
+		<view class="package-modal-mask" @click="emit('close')">
+			<view
+				class="package-modal"
+				role="dialog"
+				aria-modal="true"
+				:aria-label="title"
+				@click.stop
+			>
+				<view class="package-modal-header">
+					<view class="package-modal-heading">
+						<view class="package-modal-title">{{ title }}</view>
+						<view class="package-modal-subtitle">{{ displayPoolName }}</view>
+					</view>
+					<view class="package-modal-close" @click="emit('close')">×</view>
 				</view>
-				<view class="package-modal-close" @click="emit('close')">×</view>
-			</view>
 
-			<scroll-view class="package-modal-body" scroll-y>
-				<ThreeHitSetContent
-					v-if="kind === 'three'"
-					period="current-month"
-					:source="source"
-					:account-id="poolId"
-				/>
-				<SixHitSetContent
-					v-else
-					:account-id="poolId"
-				/>
-			</scroll-view>
+				<scroll-view class="package-modal-body" scroll-y>
+					<ThreeHitSetContent
+						v-if="kind === 'three'"
+						ref="threeContentRef"
+						period="current-month"
+						:source="source"
+						:account-id="poolId"
+						@data-availability="threeHasData = $event"
+						@operation-open="threeOperationOpen = true"
+						@operation-close="threeOperationOpen = false"
+						@quick-schedule-imported="threeImportCompleted = true"
+					/>
+					<SixHitSetContent
+						v-else
+						ref="sixContentRef"
+						:account-id="poolId"
+						@data-availability="sixHasData = $event"
+						@operation-open="sixOperationOpen = true"
+						@operation-close="sixOperationOpen = false"
+						@quick-schedule-imported="sixImportCompleted = true"
+					/>
+				</scroll-view>
+			</view>
 		</view>
+
+		<HitSetPackageGuide
+			v-if="guideEnabled"
+			:location="guideLocation"
+			:package-kind="kind"
+			:active="guideActive"
+			:operation-open="guideOperationOpen"
+			:include-import="importGuideEnabled"
+			:import-completed="guideImportCompleted"
+			@close-operation="closeGuideOperation"
+		/>
 	</view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import HitSetPackageGuide from './HitSetPackageGuide.vue';
 import SixHitSetContent from './SixHitSetContent.vue';
 import ThreeHitSetContent from './ThreeHitSetContent.vue';
 
@@ -41,12 +65,45 @@ const props = defineProps<{
 	poolName?: string;
 	poolId?: number;
 	source?: 'system' | 'user';
+	guideEnabled?: boolean;
+	importGuideEnabled?: boolean;
 }>();
 
 const emit = defineEmits<{ (event: 'close'): void }>();
 
 const title = computed(() => (props.kind === 'three' ? 'D面套餐' : '满补套餐'));
 const displayPoolName = computed(() => props.poolName || '当前账号');
+const threeHasData = ref(false);
+const threeOperationOpen = ref(false);
+const threeImportCompleted = ref(false);
+const sixHasData = ref(false);
+const sixOperationOpen = ref(false);
+const sixImportCompleted = ref(false);
+const guideLocation = computed(() => (props.kind === 'three' ? 'team' : 'group'));
+const guideActive = computed(() => (
+	props.kind === 'three' ? threeHasData.value : sixHasData.value
+));
+const guideOperationOpen = computed(() => (
+	props.kind === 'three' ? threeOperationOpen.value : sixOperationOpen.value
+));
+const guideImportCompleted = computed(() => (
+	props.kind === 'three' ? threeImportCompleted.value : sixImportCompleted.value
+));
+const threeContentRef = ref<OperationContentHandle | null>(null);
+const sixContentRef = ref<OperationContentHandle | null>(null);
+
+interface OperationContentHandle {
+	closeOperation: () => void;
+}
+
+function closeGuideOperation(): void {
+	if (props.kind === 'three') {
+		threeContentRef.value?.closeOperation();
+		return;
+	}
+
+	sixContentRef.value?.closeOperation();
+}
 </script>
 
 <style scoped>

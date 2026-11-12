@@ -72,6 +72,18 @@
 			"style": { "navigationStyle": "custom", "navigationBarTitleText": "BUG反馈" }
 		},
 		{
+			"path": "pages/feedback/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "意见反馈" }
+		},
+		{
+			"path": "pages/feedback/create/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "提交意见反馈" }
+		},
+		{
+			"path": "pages/feedback/detail/index",
+			"style": { "navigationStyle": "custom", "navigationBarTitleText": "反馈详情" }
+		},
+		{
 			"path": "pages/support/index",
 			"style": { "navigationStyle": "custom", "navigationBarTitleText": "支持作者" }
 		},

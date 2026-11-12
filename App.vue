@@ -32,6 +32,13 @@ page {
 	font-size: 14px;
 }
 
+/* #ifdef H5 */
+uni-modal,
+uni-toast {
+	z-index: 1500 !important;
+}
+/* #endif */
+
 view,
 text,
 button,

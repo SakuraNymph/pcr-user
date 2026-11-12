@@ -4,10 +4,7 @@
 				<!-- 筛选面板 -->
 				<view class="filter-panel">
 					<!-- BOSS 选择 -->
-					<view
-						class="boss-section guide-target-boss"
-						:class="{ 'guide-filter-focus': guideVisible && guideStep === 0 }"
-					>
+					<view class="boss-section">
 						<view class="boss-list">
 							<view
 								v-for="boss in bosses"
@@ -31,10 +28,7 @@
 
 					<!-- 难度与攻击类型左右排列 -->
 					<view class="filter-options">
-						<view
-							class="filter-group difficulty-group guide-target-difficulty"
-							:class="{ 'guide-filter-focus': guideVisible && guideStep === 1 }"
-						>
+						<view class="filter-group difficulty-group">
 							<view class="section-title">难度</view>
 							<view class="option-list">
 								<view
@@ -49,10 +43,7 @@
 							</view>
 						</view>
 
-						<view
-							class="filter-group attack-group guide-target-attack"
-							:class="{ 'guide-filter-focus': guideVisible && guideStep === 2 }"
-						>
+						<view class="filter-group attack-group">
 							<view class="section-title">攻击类型</view>
 							<view class="option-list">
 								<view
@@ -166,6 +157,7 @@
 			v-if="oneClickSplitVisible"
 			kind="three"
 			source="user"
+			guide-enabled
 			@close="closeOneClickSplit"
 		/>
 
@@ -180,7 +172,10 @@
 				</view>
 
 				<view class="custom-team-body">
-					<view class="custom-form-section">
+					<view
+						class="custom-form-section post-guide-target-boss"
+						:class="{ 'post-guide-focus': guideVisible && guideStep === 0 }"
+					>
 						<view class="custom-form-label">BOSS <text class="required-mark">*</text></view>
 						<view class="boss-list custom-boss-list">
 							<view
@@ -205,7 +200,10 @@
 						</view>
 					</view>
 
-					<view class="custom-quick-row">
+					<view
+						class="custom-quick-row post-guide-target-basic"
+						:class="{ 'post-guide-focus': guideVisible && guideStep === 1 }"
+					>
 						<view class="custom-form-section custom-damage-section">
 							<view class="custom-form-label">伤害 <text class="required-mark">*</text></view>
 							<input
@@ -250,7 +248,10 @@
 						</view>
 					</view>
 
-					<view class="custom-form-section">
+					<view
+						class="custom-form-section post-guide-target-remark"
+						:class="{ 'post-guide-focus': guideVisible && guideStep === 2 }"
+					>
 						<view class="custom-form-label">备注</view>
 						<textarea
 							v-model="customRemark"
@@ -260,7 +261,10 @@
 						/>
 					</view>
 
-					<view class="custom-form-section custom-role-selection-section">
+					<view
+						class="custom-form-section custom-role-selection-section post-guide-target-roles"
+						:class="{ 'post-guide-focus': guideVisible && guideStep === 3 }"
+					>
 						<view class="custom-form-label">
 							选择角色 <text class="required-mark">*</text>
 						</view>
@@ -300,22 +304,25 @@
 							</view>
 						</scroll-view>
 						<view v-else-if="!roleError" class="custom-role-state">该属性暂无可选角色</view>
-						<view class="custom-role-hint">选满 5 人后，点击已选角色可标记“缺”；再次点击会移除该角色。</view>
+						<view class="custom-role-hint">选择符合作业要求的角色；再次点击已选角色会标记为“缺”，最多只能缺少一名角色；再次点击已标记角色会将其移除。</view>
 					</view>
 				</view>
 
 				<view class="custom-team-modal-footer">
 					<view class="custom-cancel-button" @click="closeAddTeamModal">取消</view>
 					<view
-						class="custom-submit-button"
-						:class="{ disabled: customSubmitting }"
+						class="custom-submit-button post-guide-target-submit"
+						:class="{
+							disabled: customSubmitting,
+							'post-guide-focus': guideVisible && guideStep === 4,
+						}"
 						@click="submitCustomTeam"
 					>{{ customSubmitting ? '提交中...' : (customEditingTeamId === null ? '添加作业' : '保存修改') }}</view>
 				</view>
 			</view>
 		</view>
 
-		<!-- 新手引导：guideFinished 为 false 时自动开启 -->
+		<!-- 添加作业弹窗新手引导：post=true 时打开添加弹窗自动开启 -->
 		<view v-if="guideVisible" class="guide-overlay">
 			<view class="guide-spotlight" :style="guideSpotlightStyle"></view>
 			<view class="guide-card" :style="guideCardStyle">
@@ -360,8 +367,6 @@ import TeamCard from '../../components/TeamCard.vue';
 
 interface GuideStep {
 	target: string;
-	parts?: string[];
-	fallback?: string;
 	title: string;
 	description: string;
 }
@@ -431,56 +436,46 @@ export default defineComponent({
 				{ label: '暗', value: 5 },
 			],
 
+			guideConfigLoaded: false,
+			guideConfigLoading: null as Promise<void> | null,
 			guideConfigEnabled: false,
-			guideDataReady: false,
-			guideStarted: false,
-			guideFinished: false,
+			guideMarkedSeen: false,
 			guideVisible: false,
 			guideStep: 0,
 			guideSpotlightStyle: { left: '12px', top: '90px', width: 'calc(100vw - 24px)', height: '100px' },
 			guideCardStyle: { left: '16px', top: '210px', width: 'calc(100vw - 32px)' },
 			guideSteps: [
 				{
-					target: '.guide-target-boss',
-					parts: ['.guide-target-boss .boss-list'],
-					fallback: '.filter-panel',
+					target: '.post-guide-target-boss',
 					title: '选择 BOSS',
-					description: '点击 BOSS 卡片，筛选对应 BOSS 的作业。',
+					description: '点击 BOSS 卡片，指定这份作业对应的 BOSS。',
 				},
 				{
-					target: '.filter-group.difficulty-group.guide-target-difficulty',
-					title: '难度筛选',
-					description: '按作业链接的难度筛选，例如纯 AUTO、SET 或目押。',
+					target: '.post-guide-target-basic',
+					title: '填写伤害与操作方式',
+					description: '输入 1–99999 的伤害，并选择自动或手动；备注可选填。',
 				},
 				{
-					target: '.filter-group.attack-group.guide-target-attack',
-					title: '攻击方式筛选',
-					description: '选择物理或魔法，快速找到对应攻击类型的作业。',
+					target: '.post-guide-target-remark',
+					title: '填写备注',
+					description: '可选填补充说明，最多 255 字，便于记录阵容或操作细节。',
 				},
 				{
-					target: '.guide-target-role',
-					fallback: '.team-list',
-					title: '角色状态',
-					description: '点击角色头像可以标记为不可用；同一作业最多标记一个角色，再点可恢复。',
+					target: '.post-guide-target-roles',
+					title: '选择 5 名角色',
+					description: '选择符合作业要求的角色；再次点击已选角色可标记为“缺”，最多只能缺少一名角色。',
 				},
 				{
-					target: '.guide-target-link',
-					fallback: '.guide-target-links',
-					title: '打开作业链接',
-					description: '点击链接卡片可在新的浏览器窗口打开作业详情。',
-				},
-				{
-					target: '.guide-target-star',
-					fallback: '.team-action',
-					title: '收藏作业',
-					description: '点击星芒收藏或取消收藏，收藏状态会同步到账号。',
+					target: '.post-guide-target-submit',
+					title: '提交作业',
+					description: '确认 BOSS、伤害和角色阵容后，点击“添加作业”。',
 				},
 			] as GuideStep[],
 
 			// 难度选项
 			difficultyOptions: [
 				{ label: '全部', value: 0 },
-				{ label: '纯 AUTO', value: 1 },
+				{ label: 'AUTO', value: 1 },
 				{ label: '简单 SET', value: 2 },
 				{ label: '开关 SET', value: 3 },
 				{ label: '简单目押', value: 4 },
@@ -579,7 +574,6 @@ export default defineComponent({
 
 	onLoad() {
 		this.loadData();
-		this.loadGuideConfig();
 	},
 
 	methods: {
@@ -645,32 +639,50 @@ export default defineComponent({
 				})
 				.finally(() => {
 					this.loading = false;
-					this.guideDataReady = true;
-					this.maybeStartGuide();
 				});
 		},
 
 		async loadGuideConfig(): Promise<void> {
 			try {
-				this.guideConfigEnabled = await getGuideConfig('list');
+				const enabled = await getGuideConfig('post');
+				this.guideConfigLoaded = true;
+				if (!this.guideMarkedSeen) {
+					this.guideConfigEnabled = enabled;
+				}
 			} catch (error) {
 				console.error('获取新手引导配置失败：', error);
-			} finally {
-				this.maybeStartGuide();
 			}
+		},
+
+		prepareGuideForAddModal(): void {
+			if (this.customEditingTeamId !== null || !this.customAddVisible) {
+				return;
+			}
+
+			if (!this.guideConfigLoaded) {
+				if (!this.guideConfigLoading) {
+					this.guideConfigLoading = this.loadGuideConfig().finally(() => {
+						this.guideConfigLoading = null;
+						this.maybeStartGuide();
+					});
+				}
+				return;
+			}
+
+			this.maybeStartGuide();
 		},
 
 		maybeStartGuide(): void {
 			if (
+				!this.customAddVisible ||
+				this.customEditingTeamId !== null ||
 				!this.guideConfigEnabled ||
-				!this.guideDataReady ||
-				this.guideStarted ||
-				this.guideFinished
+				this.guideVisible ||
+				!this.guideSteps.length
 			) {
 				return;
 			}
 
-			this.guideStarted = true;
 			this.$nextTick(() => this.startGuide());
 		},
 
@@ -750,6 +762,7 @@ export default defineComponent({
 			this.selectedElement = 1;
 			this.roleError = '';
 			this.customAddVisible = true;
+			void this.prepareGuideForAddModal();
 			if (!this.roleGroups.length) {
 				void this.loadRoleOptions();
 			}
@@ -812,6 +825,8 @@ export default defineComponent({
 
 		closeAddTeamModal(): void {
 			if (!this.customSubmitting) {
+				this.guideVisible = false;
+				this.guideStep = 0;
 				this.customAddVisible = false;
 				this.customEditingTeamId = null;
 				this.customEditingTeam = null;
@@ -918,6 +933,9 @@ export default defineComponent({
 					await createCustomTeam(payload);
 				} else {
 					await updateCustomTeam(editingTeamId, payload);
+				}
+				if (editingTeamId === null) {
+					this.finishGuide(false);
 				}
 				this.customAddVisible = false;
 				this.customEditingTeamId = null;
@@ -1055,8 +1073,14 @@ export default defineComponent({
 			// #endif
 		},
 
-		startGuide() {
-			if (!this.guideConfigEnabled || this.guideFinished || !this.guideSteps.length) {
+		startGuide(): void {
+			if (
+				!this.customAddVisible ||
+				this.customEditingTeamId !== null ||
+				!this.guideConfigEnabled ||
+				this.guideVisible ||
+				!this.guideSteps.length
+			) {
 				return;
 			}
 
@@ -1065,84 +1089,40 @@ export default defineComponent({
 			this.$nextTick(() => this.positionGuideTarget());
 		},
 
-		positionGuideTarget(allowScroll: boolean = true) {
-			if (!this.guideVisible) {
+		positionGuideTarget(): void {
+			if (!this.guideVisible || !this.customAddVisible) {
 				return;
 			}
 
 			const step = this.guideSteps[this.guideStep];
-			// H5 用原生视口坐标测量，确保 fixed 高亮框与 DOM 元素一一对齐
+			if (!step) {
+				return;
+			}
+
+			// H5 用原生视口坐标测量，确保 fixed 高亮框与弹窗元素一一对齐
 			// #ifdef H5
-			const h5Targets = [step.target, ...(step.parts || [])]
-				.map((selector) => document.querySelector(selector))
-				.filter((element): element is Element => Boolean(element));
-			const h5Fallback = step.fallback ? document.querySelector(step.fallback) : null;
-			const h5Target = h5Targets[0] || h5Fallback;
-			const h5Rects = h5Targets.length
-				? h5Targets.map((element) => element.getBoundingClientRect())
-				: (h5Fallback ? [h5Fallback.getBoundingClientRect()] : []);
-			const h5Rect = this.combineGuideRects(h5Rects);
-			if (h5Target && h5Rect) {
-				this.applyGuidePosition(h5Rect, h5Target, allowScroll);
+			const h5Target = document.querySelector(step.target);
+			if (h5Target) {
+				this.applyGuidePosition(h5Target.getBoundingClientRect());
 				return;
 			}
 			// #endif
 
-			const partSelectors = step.parts || [];
-			const selectors = [step.target, ...partSelectors, step.fallback]
-				.filter((selector): selector is string => Boolean(selector));
 			const query = uni.createSelectorQuery().in(this);
-			selectors.forEach((selector) => query.select(selector).boundingClientRect());
-
+			query.select(step.target).boundingClientRect();
 			query.exec((rects) => {
-				const primaryRects = (rects || []).slice(0, partSelectors.length + 1).filter(Boolean);
-				const fallbackRect = step.fallback ? (rects || [])[partSelectors.length + 1] : null;
-				const rect = this.combineGuideRects(primaryRects.length ? primaryRects : [fallbackRect]);
-				const targetSelector = primaryRects.length ? step.target : step.fallback;
-
-				if (!rect || !targetSelector) {
-					return;
+				const rect = rects?.[0];
+				if (rect) {
+					this.applyGuidePosition(rect);
 				}
-
-				this.applyGuidePosition(rect, targetSelector, allowScroll);
 			});
 		},
 
-		combineGuideRects(rects: Array<GuideRect | null | undefined>): GuideRect | null {
-			const validRects = (rects || []).filter(Boolean);
-			if (!validRects.length) {
-				return null;
-			}
-
-			const left = Math.min(...validRects.map((rect) => rect.left));
-			const top = Math.min(...validRects.map((rect) => rect.top));
-			const right = Math.max(...validRects.map((rect) => rect.right));
-			const bottom = Math.max(...validRects.map((rect) => rect.bottom));
-			return { left, top, right, bottom, width: right - left, height: bottom - top };
-		},
-
-		applyGuidePosition(rect: GuideRect, target: Element | string, allowScroll: boolean = true) {
+		applyGuidePosition(rect: GuideRect): void {
 			const windowInfo = uni.getSystemInfoSync();
 			const windowWidth = windowInfo.windowWidth || 375;
 			const windowHeight = windowInfo.windowHeight || 700;
-			if (allowScroll && (rect.bottom > windowHeight - 190 || rect.top < 40)) {
-				// #ifdef H5
-				if (typeof target !== 'string' && target.scrollIntoView) {
-					target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-				}
-				// #endif
-				// #ifndef H5
-				uni.pageScrollTo({
-					selector: typeof target === 'string' ? target : '',
-					offset: -100,
-					duration: 250,
-				});
-				// #endif
-				setTimeout(() => this.positionGuideTarget(false), 350);
-				return;
-			}
 
-			// 高亮框直接使用目標元素的視口邊界，不額外擴大或偏移
 			this.guideSpotlightStyle = {
 				left: rect.left + 'px',
 				top: rect.top + 'px',
@@ -1152,12 +1132,22 @@ export default defineComponent({
 
 			const cardWidth = Math.min(320, windowWidth - 32);
 			const cardLeft = Math.min(
-				Math.max(16, rect.left + rect.width / 2 - cardWidth / 2),
-				windowWidth - cardWidth - 16,
+				Math.max(12, rect.left + rect.width / 2 - cardWidth / 2),
+				windowWidth - cardWidth - 12,
 			);
-			const cardTop = rect.bottom + 20 + 170 < windowHeight
-				? rect.bottom + 20
-				: Math.max(12, rect.top - 180);
+			const estimatedCardHeight = 190;
+			const belowTop = rect.bottom + 16;
+			const aboveTop = rect.top - estimatedCardHeight - 16;
+			let cardTop = Math.max(
+				12,
+				Math.min(windowHeight - estimatedCardHeight - 12, belowTop),
+			);
+			if (belowTop + estimatedCardHeight <= windowHeight - 12) {
+				cardTop = belowTop;
+			} else if (aboveTop >= 12) {
+				cardTop = aboveTop;
+			}
+
 			this.guideCardStyle = {
 				left: cardLeft + 'px',
 				top: cardTop + 'px',
@@ -1165,7 +1155,7 @@ export default defineComponent({
 			};
 		},
 
-		nextGuideStep() {
+		nextGuideStep(): void {
 			if (this.guideStep >= this.guideSteps.length - 1) {
 				this.finishGuide();
 				return;
@@ -1175,27 +1165,34 @@ export default defineComponent({
 			this.$nextTick(() => this.positionGuideTarget());
 		},
 
-		skipGuide() {
+		skipGuide(): void {
 			this.finishGuide();
 		},
 
-		finishGuide() {
-			this.guideFinished = true;
+		finishGuide(showError: boolean = true): void {
 			this.guideVisible = false;
-			if (this.guideConfigEnabled) {
-				void this.persistGuideConfig();
+			this.guideStep = 0;
+			if (this.guideMarkedSeen) {
+				return;
 			}
+
+			this.guideMarkedSeen = true;
+			this.guideConfigEnabled = false;
+			this.guideConfigLoaded = true;
+			void this.persistGuideConfig(showError);
 		},
 
-		async persistGuideConfig(): Promise<void> {
+		async persistGuideConfig(showError: boolean = true): Promise<void> {
 			try {
-				await saveGuideConfig('list');
+				await saveGuideConfig('post');
 			} catch (error) {
 				console.error('保存新手引导状态失败：', error);
-				uni.showToast({
-					title: error instanceof Error ? error.message : '保存新手引导状态失败',
-					icon: 'none',
-				});
+				if (showError) {
+					uni.showToast({
+						title: error instanceof Error ? error.message : '保存新手引导状态失败',
+						icon: 'none',
+					});
+				}
 			}
 		},
 
@@ -1458,11 +1455,10 @@ export default defineComponent({
 	padding-left: 16px;
 	border-left: 1px solid var(--border-default);
 }
-.guide-filter-focus {
+.post-guide-focus {
 	position: relative;
 	z-index: 1;
-	border-radius: 8px;
-	background-color: rgba(255, 204, 64, 0.045);
+	border-radius: 10px;
 	box-shadow: 0 0 0 1px rgba(255, 211, 78, 0.82), 0 0 18px rgba(255, 196, 54, 0.38);
 }
 .option-list {
@@ -1579,7 +1575,7 @@ export default defineComponent({
 .guide-overlay {
 	position: fixed;
 	inset: 0;
-	z-index: 99999;
+	z-index: 100001;
 	pointer-events: none;
 }
 .guide-spotlight {

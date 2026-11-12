@@ -16,7 +16,7 @@
 					>
 						{{ pools.length }} 个账号
 					</view>
-					<view class="add-button" @click="handleAddAccount">＋ 添加账号</view>
+					<view class="add-button account-guide-target-add" @click="handleAddAccount">＋ 添加账号</view>
 				</view>
 			</view>
 
@@ -63,9 +63,13 @@
 			</view>
 		</view>
 
-		<Transition name="account-editor" appear>
+		<Transition :name="editorTransitionName" appear @after-enter="handleEditorAfterEnter">
 			<view v-if="editorVisible" class="modal-mask" @click="closeEditor">
-				<view class="editor-modal" @click.stop>
+				<view
+					class="editor-modal"
+					:class="{ 'is-guide-open': guideVisible }"
+					@click.stop
+				>
 				<view class="modal-header">
 					<view class="modal-title">{{ editingId === null ? '添加账号' : '修改账号' }}</view>
 					<view class="close-button" @click="closeEditor">×</view>
@@ -75,7 +79,7 @@
 						<view class="section-title"><text class="section-dot">●</text> 账号昵称</view>
 						<input
 							v-model="nickname"
-							class="nickname-input"
+							class="nickname-input account-guide-target-nickname"
 							maxlength="64"
 							placeholder="请输入账号昵称"
 							:disabled="editorLoading || submitting"
@@ -86,7 +90,7 @@
 					<view class="form-section role-section">
 						<view class="section-title"><text class="section-dot">●</text> 角色池</view>
 						<view class="role-search-row">
-							<view class="search-box">
+							<view class="search-box account-guide-target-role-search">
 								<text class="search-icon">⌕</text>
 								<input v-model="searchText" class="search-input" placeholder="搜索角色名称..." :disabled="editorLoading" />
 							</view>
@@ -110,10 +114,13 @@
 						<scroll-view v-else class="role-grid-scroll" scroll-y>
 							<view v-if="visibleRoles.length" class="role-grid">
 								<view
-									v-for="role in visibleRoles"
+									v-for="(role, roleIndex) in visibleRoles"
 									:key="role.id"
 									class="role-option"
-									:class="{ selected: isRoleSelected(role.id) }"
+									:class="{
+										selected: isRoleSelected(role.id),
+										'account-guide-target-role-avatar': roleIndex === 0,
+									}"
 									:title="role.name"
 									@click="toggleRole(role.id)"
 								>
@@ -135,15 +142,30 @@
 					<text>✓ {{ saveSuccessMessage || '修改成功，角色顺序已按持有状态更新' }}</text>
 				</view>
 				<view class="modal-footer">
-					<view class="select-all-button" :class="{ disabled: editorLoading || !selectableRoles.length }" @click="selectAllRoles">一键全选</view>
+					<view class="select-all-button account-guide-target-select-all" :class="{ disabled: editorLoading || !selectableRoles.length }" @click="selectAllRoles">一键全选</view>
 					<view class="cancel-button" @click="closeEditor">取消</view>
-					<view class="save-button" :class="{ disabled: submitting || editorLoading || !editorReady || !!roleError }" @click="savePool">
+					<view class="save-button account-guide-target-save" :class="{ disabled: submitting || editorLoading || !editorReady || !!roleError }" @click="savePool">
 						{{ submitting ? '保存中...' : '保存配置' }}
 					</view>
 				</view>
 			</view>
 			</view>
 		</Transition>
+
+		<view v-if="guideVisible" class="account-guide-overlay">
+			<view class="account-guide-spotlight" :style="guideSpotlightStyle"></view>
+			<view class="account-guide-card" :style="guideCardStyle">
+				<view class="account-guide-progress">新手引导　{{ guideStep + 1 }} / {{ accountGuideSteps.length }}</view>
+				<view class="account-guide-title">{{ currentGuideStep.title }}</view>
+				<view class="account-guide-description">{{ currentGuideStep.description }}</view>
+				<view class="account-guide-actions">
+					<view class="account-guide-skip" @click.stop="skipAccountGuide">跳过</view>
+					<view class="account-guide-next" @click.stop="nextAccountGuideStep">
+						{{ guideStep === accountGuideSteps.length - 1 ? '完成' : '下一步' }}
+					</view>
+				</view>
+			</view>
+		</view>
 
 		<Transition name="feature-dialog" appear>
 			<MasterCoinShopModal
@@ -170,6 +192,8 @@
 				:kind="packageModalKind"
 				:pool-name="packagePoolName"
 				:pool-id="packagePoolId"
+				guide-enabled
+				import-guide-enabled
 				@close="closePackageModal"
 			/>
 		</Transition>
@@ -177,12 +201,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { onHide, onShow } from '@dcloudio/uni-app';
 import { authState } from '../../api/identity';
 import { errorMessage } from '../../api/errors';
 import { createRolePool, deleteRolePool, getRolePool, getRolePools, updateRolePool } from '../../api/rolePool';
 import { getGameRoles } from '../../api/gameRole';
+import { getGuideConfig, saveGuideConfig } from '../../api/user';
 import type { GameRoleOption, UserRolePool } from '../../api/types';
 import CardStatisticsModal from '../../components/CardStatisticsModal.vue';
 import HitSetPackageModal from '../../components/HitSetPackageModal.vue';
@@ -198,6 +223,65 @@ const elementOptions = [
 	{ label: '🍃 风', value: 3 },
 	{ label: '☀️ 光', value: 4 },
 	{ label: '🌑 暗', value: 5 },
+];
+
+type AccountGuideStepKey = 'add' | 'nickname' | 'role-search' | 'role-avatar' | 'select-all' | 'save';
+
+interface AccountGuideStep {
+	key: AccountGuideStepKey;
+	target: string;
+	fallbacks?: string[];
+	title: string;
+	description: string;
+}
+
+interface GuideRect {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+}
+
+const accountGuideSteps: AccountGuideStep[] = [
+	{
+		key: 'add',
+		target: '.account-guide-target-add',
+		title: '添加游戏账号',
+		description: '点击“添加账号”，为角色池建立一个游戏账号。',
+	},
+	{
+		key: 'nickname',
+		target: '.account-guide-target-nickname',
+		title: '填写账号昵称',
+		description: '填写便于识别的账号昵称，最多 64 个字符。',
+	},
+	{
+		key: 'role-search',
+		target: '.account-guide-target-role-search',
+		title: '搜索角色',
+		description: '输入角色名称可快速筛选，点击“重置”可恢复全部角色。',
+	},
+	{
+		key: 'role-avatar',
+		target: '.account-guide-target-role-avatar',
+		fallbacks: ['.role-grid-scroll', '.role-section'],
+		title: '选择角色头像',
+		description: '点击角色头像将该角色加入账号角色池，再次点击可取消。',
+	},
+	{
+		key: 'select-all',
+		target: '.account-guide-target-select-all',
+		title: '一键全选',
+		description: '快速选中当前筛选范围内的全部角色，再按需取消。',
+	},
+	{
+		key: 'save',
+		target: '.account-guide-target-save',
+		title: '保存配置',
+		description: '确认昵称和角色后点击“保存配置”；保存成功后引导会自动结束。',
+	},
 ];
 
 const pools = ref<UserRolePool[]>([]);
@@ -227,6 +311,27 @@ const statisticsPoolId = ref(0);
 const statisticsPoolName = ref('');
 let editorLoadVersion = 0;
 
+const guideConfigLoaded = ref(false);
+const guideConfigEnabled = ref(false);
+const guideMarkedSeen = ref(false);
+const guideVisible = ref(false);
+const guideStep = ref(0);
+const guideDeferredUntilShow = ref(false);
+const guideSpotlightStyle = ref({
+	left: '12px',
+	top: '90px',
+	width: 'calc(100vw - 24px)',
+	height: '100px',
+});
+const guideCardStyle = ref({
+	left: '16px',
+	top: '210px',
+	width: 'calc(100vw - 32px)',
+});
+let guideConfigLoading: Promise<void> | null = null;
+let guideRepositionTimer: ReturnType<typeof setTimeout> | null = null;
+let accountGuideUnmounted = false;
+
 const allRoles = computed(() => roleGroups.value.flatMap((group) => group.roles));
 const isAccountListEmpty = computed(() => (
 	listLoading.value ||
@@ -247,9 +352,45 @@ const visibleRoles = computed(() => {
 		return matchesElement && matchesName;
 	});
 });
+const currentGuideStep = computed(() => (
+	accountGuideSteps[guideStep.value] || accountGuideSteps[0]
+));
+const editorTransitionName = computed(() => (
+	guideVisible.value && guideStep.value > 0
+		? 'account-editor-guide'
+		: 'account-editor'
+));
 
 onShow(() => {
+	guideDeferredUntilShow.value = false;
 	void loadPools();
+	if (guideVisible.value) {
+		scheduleGuidePosition();
+	} else {
+		maybeStartAccountGuide();
+	}
+});
+
+onHide(() => {
+	if (guideVisible.value) {
+		hideAccountGuideWithoutSaving();
+	}
+});
+
+watch(
+	() => authState.isAuthenticated,
+	(authenticated) => {
+		if (!authenticated) {
+			hideAccountGuideWithoutSaving();
+			return;
+		}
+		maybeStartAccountGuide();
+	},
+);
+
+onBeforeUnmount(() => {
+	accountGuideUnmounted = true;
+	clearGuideRepositionTimer();
 });
 
 function handleAddAccount(): void {
@@ -258,6 +399,293 @@ function handleAddAccount(): void {
 		return;
 	}
 	openCreate();
+	if (guideVisible.value && guideStep.value === 0) {
+		guideStep.value = 1;
+		scheduleGuidePositionAfterEditorOpen();
+	}
+}
+
+function clearGuideRepositionTimer(): void {
+	if (guideRepositionTimer !== null) {
+		clearTimeout(guideRepositionTimer);
+		guideRepositionTimer = null;
+	}
+}
+
+function scheduleGuidePosition(delay: number = 0): void {
+	clearGuideRepositionTimer();
+	if (delay > 0) {
+		guideRepositionTimer = setTimeout(() => {
+			guideRepositionTimer = null;
+			positionAccountGuideTarget();
+		}, delay);
+		return;
+	}
+	void nextTick(() => {
+		if (!accountGuideUnmounted) {
+			positionAccountGuideTarget();
+		}
+	});
+}
+
+function scheduleGuidePositionAfterScroll(): void {
+	clearGuideRepositionTimer();
+	guideRepositionTimer = setTimeout(() => {
+		guideRepositionTimer = null;
+		positionAccountGuideTarget(false);
+	}, 350);
+}
+
+function scheduleGuidePositionAfterEditorOpen(): void {
+	clearGuideRepositionTimer();
+	void nextTick(() => {
+		if (!accountGuideUnmounted && guideVisible.value) {
+			positionAccountGuideTarget(false);
+		}
+	});
+	guideRepositionTimer = setTimeout(() => {
+		guideRepositionTimer = null;
+		positionAccountGuideTarget(false);
+	}, 520);
+}
+
+function handleEditorAfterEnter(): void {
+	if (guideVisible.value) {
+		scheduleGuidePosition();
+	}
+}
+
+async function loadAccountGuideConfig(): Promise<void> {
+	if (guideConfigLoaded.value) {
+		return;
+	}
+	if (guideConfigLoading) {
+		return guideConfigLoading;
+	}
+
+	const pendingConfig = (async (): Promise<void> => {
+		try {
+			const enabled = await getGuideConfig('account');
+			if (!guideMarkedSeen.value) {
+				guideConfigEnabled.value = enabled;
+			}
+		} catch (error) {
+			console.error('获取我的账号新手引导配置失败：', error);
+		} finally {
+			guideConfigLoaded.value = true;
+			guideConfigLoading = null;
+		}
+	})();
+
+	guideConfigLoading = pendingConfig;
+	return pendingConfig;
+}
+
+function maybeStartAccountGuide(): void {
+	if (
+		accountGuideUnmounted ||
+		!authState.isAuthenticated ||
+		guideDeferredUntilShow.value ||
+		guideMarkedSeen.value ||
+		guideVisible.value ||
+		(editorVisible.value && editingId.value !== null)
+	) {
+		return;
+	}
+
+	if (!guideConfigLoaded.value) {
+		void loadAccountGuideConfig().then(() => {
+			if (!accountGuideUnmounted) {
+				maybeStartAccountGuide();
+			}
+		});
+		return;
+	}
+
+	if (!guideConfigEnabled.value) {
+		return;
+	}
+
+	void nextTick(() => {
+		if (
+			accountGuideUnmounted ||
+			!authState.isAuthenticated ||
+			guideDeferredUntilShow.value ||
+			guideMarkedSeen.value ||
+			guideVisible.value ||
+			(editorVisible.value && editingId.value !== null) ||
+			!guideConfigEnabled.value
+		) {
+			return;
+		}
+
+		guideStep.value = editorVisible.value ? 1 : 0;
+		guideVisible.value = true;
+		if (editorVisible.value) {
+			scheduleGuidePositionAfterEditorOpen();
+		} else {
+			scheduleGuidePosition();
+		}
+	});
+}
+
+function hideAccountGuideWithoutSaving(): void {
+	guideVisible.value = false;
+	guideStep.value = 0;
+	clearGuideRepositionTimer();
+}
+
+function deferAccountGuideForPageAction(): void {
+	if (!guideVisible.value) {
+		return;
+	}
+	hideAccountGuideWithoutSaving();
+	guideDeferredUntilShow.value = true;
+}
+
+function finishAccountGuide(showError: boolean = true): void {
+	hideAccountGuideWithoutSaving();
+	if (guideMarkedSeen.value) {
+		return;
+	}
+
+	guideMarkedSeen.value = true;
+	guideConfigEnabled.value = false;
+	guideConfigLoaded.value = true;
+	void persistAccountGuideConfig(showError);
+}
+
+async function persistAccountGuideConfig(showError: boolean): Promise<void> {
+	try {
+		await saveGuideConfig('account');
+	} catch (error) {
+		console.error('保存我的账号新手引导状态失败：', error);
+		if (showError) {
+			uni.showToast({
+				title: error instanceof Error ? error.message : '保存新手引导状态失败',
+				icon: 'none',
+			});
+		}
+	}
+}
+
+function nextAccountGuideStep(): void {
+	if (guideStep.value >= accountGuideSteps.length - 1) {
+		finishAccountGuide();
+		return;
+	}
+
+	if (guideStep.value === 0) {
+		if (!editorVisible.value) {
+			openCreate();
+		}
+		guideStep.value = 1;
+		scheduleGuidePositionAfterEditorOpen();
+		return;
+	}
+
+	guideStep.value += 1;
+	scheduleGuidePosition();
+}
+
+function skipAccountGuide(): void {
+	finishAccountGuide();
+}
+
+function positionAccountGuideTarget(allowScroll: boolean = true): void {
+	if (!guideVisible.value || accountGuideUnmounted) {
+		return;
+	}
+
+	const step = currentGuideStep.value;
+	if (!step) {
+		return;
+	}
+
+	const selectors = [step.target, ...(step.fallbacks || [])];
+	const windowHeight = uni.getSystemInfoSync().windowHeight || 700;
+
+	// #ifdef H5
+	let h5Target: Element | null = null;
+	for (const selector of selectors) {
+		const element = document.querySelector(selector);
+		if (element) {
+			h5Target = element;
+			break;
+		}
+	}
+	if (h5Target) {
+		const rect = h5Target.getBoundingClientRect();
+		const needsScroll = allowScroll && (
+			rect.top < 12 ||
+			rect.bottom > windowHeight - 80
+		);
+		const canScrollTarget = Boolean(
+			h5Target.closest('.editor-body')
+			|| h5Target.closest('.role-grid-scroll'),
+		);
+		if (
+			needsScroll &&
+			canScrollTarget
+		) {
+			h5Target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			scheduleGuidePositionAfterScroll();
+			return;
+		}
+		applyGuidePosition(rect);
+		return;
+	}
+	// #endif
+
+	const query = uni.createSelectorQuery();
+	selectors.forEach((selector) => query.select(selector).boundingClientRect());
+	query.exec((rects) => {
+		const rect = (rects || []).find((item) => Boolean(item));
+		if (rect) {
+			applyGuidePosition(rect as GuideRect);
+		}
+	});
+}
+
+function applyGuidePosition(rect: GuideRect): void {
+	if (!guideVisible.value) {
+		return;
+	}
+
+	const windowInfo = uni.getSystemInfoSync();
+	const windowWidth = windowInfo.windowWidth || 375;
+	const windowHeight = windowInfo.windowHeight || 700;
+
+	guideSpotlightStyle.value = {
+		left: rect.left + 'px',
+		top: rect.top + 'px',
+		width: rect.width + 'px',
+		height: rect.height + 'px',
+	};
+
+	const cardWidth = Math.min(320, windowWidth - 32);
+	const cardLeft = Math.min(
+		Math.max(12, rect.left + rect.width / 2 - cardWidth / 2),
+		windowWidth - cardWidth - 12,
+	);
+	const estimatedCardHeight = 210;
+	const belowTop = rect.bottom + 16;
+	const aboveTop = rect.top - estimatedCardHeight - 16;
+	let cardTop = Math.max(
+		12,
+		Math.min(windowHeight - estimatedCardHeight - 12, belowTop),
+	);
+	if (belowTop + estimatedCardHeight <= windowHeight - 12) {
+		cardTop = belowTop;
+	} else if (aboveTop >= 12) {
+		cardTop = aboveTop;
+	}
+
+	guideCardStyle.value = {
+		left: cardLeft + 'px',
+		top: cardTop + 'px',
+		width: cardWidth + 'px',
+	};
 }
 
 async function loadPools(): Promise<void> {
@@ -307,6 +735,7 @@ function openCreate(): void {
 }
 
 async function openEdit(pool: UserRolePool): Promise<void> {
+	deferAccountGuideForPageAction();
 	resetEditor();
 	editingId.value = pool.id;
 	editorVisible.value = true;
@@ -348,6 +777,9 @@ async function loadEditorData(poolId?: number): Promise<void> {
 		if (loadVersion === editorLoadVersion) {
 			editorLoading.value = false;
 		}
+		if (guideVisible.value) {
+			scheduleGuidePosition(50);
+		}
 	}
 }
 
@@ -358,6 +790,10 @@ function retryEditorLoad(): void {
 
 function closeEditor(): void {
 	if (submitting.value) return;
+	if (guideVisible.value) {
+		hideAccountGuideWithoutSaving();
+		guideDeferredUntilShow.value = true;
+	}
 	editorLoadVersion += 1;
 	editorLoading.value = false;
 	editorReady.value = false;
@@ -459,6 +895,9 @@ async function savePool(): Promise<void> {
 		const payload = { nickname: normalizedNickname, roles };
 		if (editingId.value === null) {
 			await createRolePool(payload);
+			if (guideVisible.value) {
+				finishAccountGuide(false);
+			}
 			uni.showToast({ title: '添加成功', icon: 'success' });
 			editorVisible.value = false;
 			await loadPools();
@@ -485,6 +924,7 @@ async function savePool(): Promise<void> {
 }
 
 function confirmDelete(pool: UserRolePool): void {
+	deferAccountGuideForPageAction();
 	uni.showModal({
 		title: '删除账号',
 		content: `确认删除“${pool.nickname}”吗？`,
@@ -504,6 +944,7 @@ function confirmDelete(pool: UserRolePool): void {
 }
 
 function openFeature(feature: string, pool: UserRolePool): void {
+	deferAccountGuideForPageAction();
 	if (feature === 'D面分刀') {
 		packageModalKind.value = 'three';
 		packagePoolName.value = pool.nickname;
@@ -917,6 +1358,20 @@ function closeStatistics(): void {
 	transform: translate3d(0, 10px, 0) scale(0.99);
 }
 
+.account-editor-guide-enter-active,
+.account-editor-guide-leave-active,
+.account-editor-guide-enter-active .editor-modal,
+.account-editor-guide-leave-active .editor-modal {
+	transition: opacity 0.16s ease;
+}
+
+.account-editor-guide-enter-from,
+.account-editor-guide-leave-to,
+.account-editor-guide-enter-from .editor-modal,
+.account-editor-guide-leave-to .editor-modal {
+	opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.account-editor-enter-active,
 	.account-editor-leave-active,
@@ -1221,6 +1676,86 @@ function closeStatistics(): void {
 	cursor: not-allowed;
 }
 
+.account-guide-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 100001;
+	pointer-events: none;
+}
+
+.account-guide-spotlight {
+	position: fixed;
+	box-sizing: border-box;
+	border: 2px solid #ffd34e;
+	border-radius: 10px;
+	box-shadow: 0 0 0 9999px var(--mask), 0 0 22px rgba(255, 198, 48, 0.72);
+	pointer-events: none;
+}
+
+.account-guide-card {
+	position: fixed;
+	z-index: 2;
+	box-sizing: border-box;
+	padding: 16px;
+	border: 1px solid rgba(255, 211, 78, 0.65);
+	border-radius: 12px;
+	background: linear-gradient(145deg, var(--bg-elevated), var(--bg-elevated));
+	box-shadow: 0 10px 32px var(--shadow), 0 0 18px rgba(255, 194, 36, 0.12);
+	color: var(--text-primary);
+	pointer-events: auto;
+}
+
+.account-guide-progress {
+	margin-bottom: 7px;
+	color: #ffd34e;
+	font-size: 11px;
+}
+
+.account-guide-title {
+	margin-bottom: 7px;
+	font-size: 16px;
+	font-weight: bold;
+}
+
+.account-guide-description {
+	min-height: 38px;
+	color: var(--text-secondary);
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.account-guide-actions {
+	margin-top: 13px;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.account-guide-skip,
+.account-guide-next {
+	min-width: 72px;
+	height: 32px;
+	padding: 0 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 7px;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.account-guide-skip {
+	border: 1px solid var(--border-default);
+	color: var(--text-secondary);
+}
+
+.account-guide-next {
+	background: #087df5;
+	color: #fff;
+	font-weight: bold;
+}
+
 .feature-dialog-enter-active {
 	transition: opacity 0.32s ease;
 }
@@ -1421,6 +1956,11 @@ function closeStatistics(): void {
 
 	.editor-modal {
 		max-height: 96vh;
+	}
+
+	.editor-modal.is-guide-open {
+		height: calc(100vh - 20px);
+		max-height: calc(100vh - 20px);
 	}
 
 	.editor-body {

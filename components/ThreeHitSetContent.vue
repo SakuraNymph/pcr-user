@@ -2,7 +2,7 @@
 	<view class="three-set-page">
 			<view v-if="!authRequired" class="three-set-filter-panel">
 				<view class="three-hit-filter-body">
-					<view class="three-set-boss-column">
+					<view class="three-set-boss-column team-guide-target-boss">
 						<view class="three-set-boss-filters">
 							<view
 								v-for="(selectedBoss, rowIndex) in selectedBosses"
@@ -38,46 +38,24 @@
 						</view>
 					</view>
 
-					<view class="three-set-filter-options">
+					<view class="three-set-filter-options team-guide-target-filters">
 						<view class="three-set-filter-bottom">
-							<view class="three-set-filter-group three-set-mode-filter">
+							<view class="three-set-filter-group three-set-difficulty-filter">
 								<view class="three-set-filter-label">
-									作业模式
+									难度
 								</view>
 								<view class="three-set-choice-list">
 									<view
-										v-for="mode in modeOptions"
-										:key="mode.value"
-										class="three-set-choice"
-										:class="[{ active: selectedMode === mode.value }, 'mode-choice-' + mode.value]"
-										:aria-pressed="selectedMode === mode.value"
-										role="button"
-										tabindex="0"
-										@click="toggleMode(mode.value)"
-										@keydown.enter.prevent="toggleMode(mode.value)"
-										@keydown.space.prevent="toggleMode(mode.value)"
-									>
-										{{ mode.label }}
-									</view>
-								</view>
-							</view>
-
-							<view class="three-set-filter-group three-set-attack-filter">
-								<view class="three-set-filter-label">
-									攻击类型
-								</view>
-								<view class="three-set-choice-list">
-									<view
-										v-for="option in attackOptions"
+										v-for="option in difficultyOptions"
 										:key="option.value"
 										class="three-set-choice"
-										:class="[{ active: selectedAttack === option.value }, 'attack-choice-' + option.value]"
-										:aria-pressed="selectedAttack === option.value"
+										:class="[{ active: selectedDifficulty === option.value }, 'difficulty-choice-' + option.value]"
+										:aria-pressed="selectedDifficulty === option.value"
 										role="button"
 										tabindex="0"
-										@click="selectedAttack = option.value"
-										@keydown.enter.prevent="selectedAttack = option.value"
-										@keydown.space.prevent="selectedAttack = option.value"
+										@click="selectDifficulty(option.value)"
+										@keydown.enter.prevent="selectDifficulty(option.value)"
+										@keydown.space.prevent="selectDifficulty(option.value)"
 									>
 										{{ option.label }}
 									</view>
@@ -107,13 +85,28 @@
 				<view class="three-set-empty-hint">{{ loadError }}</view>
 				<view class="three-set-empty-reset" @click="retryLoad">重新加载</view>
 			</view>
-			<view v-else-if="displayPackages.length" class="three-set-grid">
+			<view v-else-if="displayPackages.length" class="three-set-grid team-guide-target-results">
 				<view
-					v-for="pkg in displayPackages"
+					v-for="(pkg, packageIndex) in displayPackages"
 					:key="pkg.id"
 					:id="'three-set-package-' + pkg.id"
 					class="three-set-package"
 				>
+					<view v-if="canImportQuickSchedule" class="three-set-package-actions">
+						<view
+							class="three-set-import-button team-guide-target-import"
+							:class="{ disabled: importingPackageIndex !== null }"
+							role="button"
+							tabindex="0"
+							:aria-disabled="importingPackageIndex !== null"
+							:aria-label="importingPackageIndex === packageIndex ? '正在导入套餐到快捷排刀' : '导入套餐到快捷排刀'"
+							@click.stop="importPackage(pkg, packageIndex)"
+							@keydown.enter.prevent="importPackage(pkg, packageIndex)"
+							@keydown.space.prevent="importPackage(pkg, packageIndex)"
+						>
+							{{ importingPackageIndex === packageIndex ? '导入中…' : '导入到排刀' }}
+						</view>
+					</view>
 					<view class="three-set-hit-list">
 						<view
 							v-for="hit in pkg.hits"
@@ -146,7 +139,7 @@
 							</view>
 
 							<view class="three-set-hit-roles">
-								<view class="three-set-role-main">
+								<view class="three-set-role-main team-guide-target-roles">
 									<template
 										v-for="(role, slotIndex) in getRoleSlots(hit.roles, 5)"
 										:key="role ? `${role.roleId}-${slotIndex}` : `empty-${hit.id}-${slotIndex}`"
@@ -225,7 +218,7 @@
 										class="three-set-link-wrap"
 									>
 										<view
-											class="three-set-link-row"
+											class="three-set-link-row team-guide-target-link"
 											:class="'link-difficulty-' + Number(link.difficulty || 0)"
 											:title="link.note || link.url || '暂无链接'"
 											role="button"
@@ -296,10 +289,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type {
 	Boss,
 	GameRoleOption,
-	SystemTripleAttackType,
 	SystemTripleCombination,
+	SystemDifficulty,
 	SystemTripleLink,
-	SystemTripleMode,
 	SystemTripleRequest,
 } from '../api/types';
 import { getCurrentBosses, getPreviousMonthBosses } from '../api/boss';
@@ -312,12 +304,12 @@ import {
 	getUserTripleCombinations,
 } from '../api/systemTriple';
 import { navigateTo, routes } from '../router';
+import { importGuildQuickSchedule } from '../utils/quickScheduleImport';
 import PreviousMonthDataNotice from './PreviousMonthDataNotice.vue';
 import TeamOperationModal from './TeamOperationModal.vue';
 
 type TriplePeriod = 'current-month' | 'previous-month';
 type TripleSource = 'system' | 'user';
-type AttackFilter = 'all' | '3p' | '2p' | '2m' | '3m';
 
 const props = withDefaults(defineProps<{
 	period?: TriplePeriod;
@@ -332,6 +324,13 @@ const props = withDefaults(defineProps<{
 	bossPeriod: 'current',
 	accountId: 0,
 });
+
+const emit = defineEmits<{
+	(event: 'data-availability', hasData: boolean): void;
+	(event: 'operation-open'): void;
+	(event: 'operation-close'): void;
+	(event: 'quick-schedule-imported'): void;
+}>();
 
 interface DisplayRole {
 	roleId: number;
@@ -370,8 +369,7 @@ const fallbackBosses: Boss[] = [1, 2, 3, 4, 5].map((sort) => ({
 const bosses = ref<Boss[]>(fallbackBosses);
 const roleOptions = ref<GameRoleOption[]>([]);
 const selectedBosses = ref<Array<number | null>>([null, null, null]);
-const selectedMode = ref<SystemTripleMode>(1);
-const selectedAttack = ref<AttackFilter>('all');
+const selectedDifficulty = ref<SystemDifficulty>(1);
 const failedBossImages = ref<number[]>([]);
 const failedRoleImages = ref<string[]>([]);
 const combinations = ref<SystemTripleCombination[]>([]);
@@ -385,6 +383,7 @@ const hiddenIds = ref<number[]>([]);
 const lockedTeamStages = ref<Record<number, number>>({});
 const operationHit = ref<DisplayHit | null>(null);
 const operationRefreshing = ref(false);
+const importingPackageIndex = ref<number | null>(null);
 
 interface ScrollAnchor {
 	packageKey: string;
@@ -409,21 +408,12 @@ const accountMissing = computed(() => (
 	requiresAccount.value && props.accountId <= 0
 ));
 
-const modeOptions: Array<{ label: string; value: SystemTripleMode }> = [
-	{ label: '自动', value: 1 },
-	{ label: '手动', value: 2 },
-];
-
-const attackOptions: Array<{
-	label: string;
-	value: AttackFilter;
-	apiValue: SystemTripleAttackType;
-}> = [
-	{ label: '不限', value: 'all', apiValue: 0 },
-	{ label: '3物理', value: '3p', apiValue: 1 },
-	{ label: '2物理', value: '2p', apiValue: 2 },
-	{ label: '2魔法', value: '2m', apiValue: 3 },
-	{ label: '3魔法', value: '3m', apiValue: 4 },
+const difficultyOptions: Array<{ label: string; value: SystemDifficulty }> = [
+	{ label: 'AUTO', value: 1 },
+	{ label: '简单SET', value: 2 },
+	{ label: '开关SET', value: 3 },
+	{ label: '简单目押', value: 4 },
+	{ label: '目押', value: 5 },
 ];
 
 const bossBySort = computed(() => new Map(
@@ -440,9 +430,31 @@ const displayPackages = computed<DisplayPackage[]>(() =>
 	),
 );
 
+function emitDataAvailability(): void {
+	if (loading.value) {
+		return;
+	}
+
+	emit(
+		'data-availability',
+		!loadError.value && displayPackages.value.length > 0,
+	);
+}
+
+watch(
+	[loading, loadError, displayPackages],
+	emitDataAvailability,
+	{ flush: 'post' },
+);
+
 const authRequired = computed(() => (
 	requiresRegisteredUser.value
 	&& (!authState.isAuthenticated || loginRequired.value)
+));
+const canImportQuickSchedule = computed(() => (
+	!isPreviousMonth.value
+	&& !isUserSource.value
+	&& authState.isAuthenticated
 ));
 const operationLocked = computed(() => (
 	operationHit.value !== null
@@ -455,8 +467,7 @@ let loadSequence = 0;
 watch(
 	[
 		selectedBosses,
-		selectedMode,
-		selectedAttack,
+		selectedDifficulty,
 		lockedIds,
 		hiddenIds,
 		() => props.period,
@@ -525,6 +536,37 @@ function buildDisplayPackage(
 			.join('-'),
 		hits,
 	};
+}
+
+async function importPackage(pkg: DisplayPackage, packageIndex: number): Promise<void> {
+	if (importingPackageIndex.value !== null) {
+		return;
+	}
+
+	const ids = pkg.hits.map((hit) => Number(hit.id));
+
+	if (ids.length !== 3 || ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+		uni.showToast({ title: '套餐数据不完整', icon: 'none' });
+		return;
+	}
+
+	importingPackageIndex.value = packageIndex;
+
+	try {
+		const imported = await importGuildQuickSchedule({
+			team_1: ids[0],
+			team_1_return: null,
+			team_2: ids[1],
+			team_2_return: null,
+			team_3: ids[2],
+			team_3_return: null,
+		});
+		if (imported) {
+			emit('quick-schedule-imported');
+		}
+	} finally {
+		importingPackageIndex.value = null;
+	}
 }
 
 function getRoleSlots<T>(items: T[], count: number): Array<T | null> {
@@ -771,17 +813,12 @@ async function loadPackages(): Promise<void> {
 	loadError.value = '';
 	loginRequired.value = false;
 
-	const attackType = attackOptions.find(
-		(option) => option.value === selectedAttack.value,
-	)?.apiValue ?? 0;
-
 	try {
 		const payload: SystemTripleRequest = {
 			row1: selectedBosses.value[0] ?? 0,
 			row2: selectedBosses.value[1] ?? 0,
 			row3: selectedBosses.value[2] ?? 0,
-			type: selectedMode.value,
-			atk: attackType,
+			difficulty: selectedDifficulty.value,
 			lockedIds: [...lockedIds.value],
 			hiddenIds: [...hiddenIds.value],
 			...(requiresAccount.value ? { accountId: props.accountId } : {}),
@@ -829,11 +866,19 @@ function isTeamLocked(teamId: number): boolean {
 
 function openTeamOperation(hit: DisplayHit): void {
 	operationHit.value = hit;
+	emit('operation-open');
 }
 
 function closeTeamOperation(): void {
+	if (operationHit.value !== null) {
+		emit('operation-close');
+	}
 	operationHit.value = null;
 }
+
+defineExpose({
+	closeOperation: closeTeamOperation,
+});
 
 function getLockGroup(stage: number): 'low' | 'high' {
 	return stage === 4 ? 'high' : 'low';
@@ -919,16 +964,16 @@ function hideOperationTeam(): void {
 	closeTeamOperation();
 }
 
-function applyMode(mode: SystemTripleMode): void {
-	if (selectedMode.value === mode) {
+function selectDifficulty(difficulty: SystemDifficulty): void {
+	if (selectedDifficulty.value === difficulty) {
 		return;
 	}
 
 	if (lockedIds.value.length) {
 		clearLockedTeams();
-		uni.showToast({ title: '模式已切换，锁定已清除', icon: 'none' });
+		uni.showToast({ title: '难度已切换，锁定已清除', icon: 'none' });
 	}
-	selectedMode.value = mode;
+	selectedDifficulty.value = difficulty;
 }
 
 function toggleBoss(rowIndex: number, bossSort: number): void {
@@ -937,14 +982,9 @@ function toggleBoss(rowIndex: number, bossSort: number): void {
 	);
 }
 
-function toggleMode(mode: SystemTripleMode): void {
-	applyMode(mode);
-}
-
 function resetFilters(): void {
 	selectedBosses.value = [null, null, null];
-	applyMode(1);
-	selectedAttack.value = 'all';
+	selectDifficulty(1);
 	scheduleLoad(0);
 }
 
@@ -1168,19 +1208,6 @@ function formatDamage(damage: number): string {
 	gap: 5px;
 }
 
-.three-set-attack-filter {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.three-set-attack-filter .three-set-choice-list {
-	flex: 1;
-}
-
-.three-set-attack-filter .three-set-choice {
-	flex: 0 0 70px;
-}
-
 .three-set-choice {
 	width: 70px;
 	min-width: 70px;
@@ -1205,22 +1232,6 @@ function formatDamage(damage: number): string {
 }
 
 .three-set-choice.active {
-	border-color: #087df5;
-	background: #087df5;
-	color: #fff;
-	font-weight: bold;
-	box-shadow: 0 0 10px rgba(0, 112, 255, 0.22);
-}
-
-.three-set-choice.mode-choice-1.active {
-	border-color: #087df5;
-	background: #087df5;
-	color: #fff;
-	font-weight: bold;
-	box-shadow: 0 0 10px rgba(0, 112, 255, 0.22);
-}
-
-.three-set-choice.mode-choice-2.active {
 	border-color: #087df5;
 	background: #087df5;
 	color: #fff;
@@ -1679,21 +1690,14 @@ function formatDamage(damage: number): string {
 		font-size: 12px;
 	}
 
-	.three-set-attack-filter {
-		flex: 0 0 auto;
-		gap: 4px;
-	}
-
-	.three-set-mode-filter .three-set-choice-list,
-	.three-set-attack-filter .three-set-choice-list {
+	.three-set-difficulty-filter .three-set-choice-list {
 		width: 100%;
 		display: grid;
 		grid-template-columns: repeat(5, minmax(0, 1fr));
 		gap: 4px;
 	}
 
-	.three-set-choice,
-	.three-set-attack-filter .three-set-choice {
+	.three-set-choice {
 		width: auto;
 		min-width: 0;
 		height: 28px;
@@ -2256,7 +2260,6 @@ function formatDamage(damage: number): string {
 	.three-set-filter-body { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 	.three-set-filter-options { overflow: visible; }
 	.three-set-filter-bottom { width: 100%; min-width: 0; gap: 8px; }
-	.three-set-attack-filter { min-width: 0; }
 	.three-set-package { padding: 5px; }
 	.three-set-hit { flex-direction: row; flex-wrap: wrap; min-height: 0; padding: 5px; }
 	.three-set-hit-boss { width: 50%; min-width: 0; min-height: 88px; padding: 3px; gap: 6px; }
@@ -2517,24 +2520,15 @@ function formatDamage(damage: number): string {
 		gap: 8px;
 	}
 
-	.three-set-mode-filter .three-set-choice-list,
-	.three-set-attack-filter .three-set-choice-list {
+	.three-set-difficulty-filter .three-set-choice-list {
 		width: 100%;
 		min-width: 0;
 		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
 		gap: 4px;
 	}
 
-	.three-set-mode-filter .three-set-choice-list {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.three-set-attack-filter .three-set-choice-list {
-		grid-template-columns: repeat(5, minmax(0, 1fr));
-	}
-
-	.three-set-mode-filter .three-set-choice,
-	.three-set-attack-filter .three-set-choice {
+	.three-set-difficulty-filter .three-set-choice {
 		width: auto;
 		min-width: 0;
 		flex: none;
@@ -2617,6 +2611,53 @@ function formatDamage(damage: number): string {
 @media (prefers-reduced-motion: reduce) {
 	.three-set-role-main .three-set-role.three-set-role-locked {
 		animation: none;
+	}
+}
+
+.three-set-package-actions {
+	position: relative;
+	z-index: 2;
+	padding: 0 4px 4px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.three-set-import-button {
+	min-height: 30px;
+	padding: 0 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid rgba(83, 190, 255, 0.58);
+	border-radius: 6px;
+	background: var(--accent-soft-strong);
+	color: var(--accent-text);
+	font-size: 12px;
+	font-weight: 800;
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+}
+
+.three-set-import-button:hover {
+	filter: brightness(1.1);
+}
+
+.three-set-import-button.disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	filter: none;
+}
+
+@media screen and (max-width: 700px) {
+	.three-set-package-actions {
+		padding: 0 0 4px;
+	}
+
+	.three-set-import-button {
+		min-height: 30px;
+		padding: 0 12px;
+		font-size: 11px;
 	}
 }
 </style>

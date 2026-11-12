@@ -4,7 +4,7 @@
 			v-for="item in menuItems"
 			:key="item.key"
 			class="menu-item"
-			:class="{ active: activeMenu === item.key, 'menu-item-extra': item.extra }"
+			:class="{ active: activeMenu === item.key }"
 			@click="handleItemClick(item)"
 		>
 			<text class="menu-icon">{{ item.icon }}</text>
@@ -30,21 +30,25 @@
 
 			<Transition name="more-menu">
 				<view v-if="moreOpen" class="more-menu-popover" role="menu" @click.stop>
-					<view
-						v-for="item in moreMenuItems"
-						:key="item.key"
-						class="more-menu-row"
-						:class="{ active: activeMenu === item.key }"
-						role="menuitem"
-						tabindex="0"
-						@click="selectMoreItem(item)"
-						@keydown.enter.prevent="selectMoreItem(item)"
-						@keydown.space.prevent="selectMoreItem(item)"
-					>
-						<text class="more-menu-icon">{{ item.icon }}</text>
-						<text class="more-menu-label">{{ item.label }}</text>
-						<text v-if="item.path" class="more-menu-arrow">›</text>
-					</view>
+					<template v-for="(group, groupIndex) in moreMenuGroups" :key="group.key">
+						<view v-if="groupIndex > 0" class="more-menu-divider"></view>
+						<view class="more-menu-group-label">{{ group.label }}</view>
+						<view
+							v-for="item in group.items"
+							:key="item.key"
+							class="more-menu-row"
+							:class="{ active: activeMenu === item.key }"
+							role="menuitem"
+							tabindex="0"
+							@click="selectMoreItem(item)"
+							@keydown.enter.prevent="selectMoreItem(item)"
+							@keydown.space.prevent="selectMoreItem(item)"
+						>
+							<text class="more-menu-icon">{{ item.icon }}</text>
+							<text class="more-menu-label">{{ item.label }}</text>
+							<text v-if="item.path || item.action" class="more-menu-arrow">›</text>
+						</view>
+					</template>
 				</view>
 			</Transition>
 		</view>
@@ -54,6 +58,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { redirectTo, routes, type AppRoute } from '../router';
+import { confirmGuideReset } from '../utils/guide';
 
 const props = defineProps<{ activeMenu: string }>();
 
@@ -62,7 +67,13 @@ interface NavItem {
 	label: string;
 	icon: string;
 	path: AppRoute | null;
-	extra?: boolean;
+	action?: 'resetGuide';
+}
+
+interface NavGroup {
+	key: string;
+	label: string;
+	items: NavItem[];
 }
 
 const menuItems: NavItem[] = [
@@ -70,24 +81,30 @@ const menuItems: NavItem[] = [
 	{ key: 'jobs', label: '我的作业', icon: '☑', path: routes.jobs },
 	{ key: 'threeHitSet', label: 'D面套餐', icon: '⌘', path: routes.threeHitSet },
 	{ key: 'sixHitSet', label: '满补套餐', icon: '♧', path: routes.sixHitSet },
-	{ key: 'guild', label: '我的公会', icon: '◇', path: routes.guild, extra: true },
 	{ key: 'account', label: '我的账号', icon: '♙', path: routes.account },
-	{ key: 'help', label: '使用说明', icon: '⊞', path: routes.help },
-	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial, extra: true },
-	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport, extra: true },
-	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support, extra: true },
-	{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource, extra: true },
-];
-
-const moreMenuItems: NavItem[] = [
 	{ key: 'guild', label: '我的公会', icon: '◇', path: routes.guild },
-	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial },
-	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
-	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
-	{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource },
 ];
 
-const moreMenuKeys = ['guild', 'tutorial', 'bugReport', 'support', 'openSource'];
+const moreMenuGroups: NavGroup[] = [
+	{
+		key: 'help',
+		label: '帮助',
+		items: [
+			{ key: 'tutorial', label: '使用教程', icon: '▤', path: null, action: 'resetGuide' },
+			{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
+		],
+	},
+	{
+		key: 'project',
+		label: '项目',
+		items: [
+			{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
+			{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource },
+		],
+	},
+];
+
+const moreMenuKeys = moreMenuGroups.flatMap((group) => group.items.map((item) => item.key));
 const moreOpen = ref(false);
 const moreMenuActive = computed(() => moreOpen.value || moreMenuKeys.includes(props.activeMenu));
 
@@ -96,6 +113,10 @@ function toggleMoreMenu(): void {
 }
 
 function handleItemClick(item: NavItem): void {
+	if (item.action === 'resetGuide') {
+		confirmGuideReset();
+		return;
+	}
 	if (item.path) {
 		redirectTo(item.path);
 	}
@@ -107,6 +128,10 @@ function closeMoreMenu(): void {
 
 function selectMoreItem(item: NavItem): void {
 	moreOpen.value = false;
+	if (item.action === 'resetGuide') {
+		confirmGuideReset();
+		return;
+	}
 	if (item.path) {
 		redirectTo(item.path);
 	}
@@ -191,7 +216,7 @@ onBeforeUnmount(() => {
 
 .more-menu-wrap {
 	position: relative;
-	display: none;
+	display: flex;
 	height: 64px;
 	align-items: stretch;
 }
@@ -207,12 +232,26 @@ onBeforeUnmount(() => {
 	top: calc(100% + 4px);
 	right: 0;
 	z-index: 95;
-	width: 186px;
+	width: 190px;
 	padding: 6px;
 	border: 1px solid var(--border-strong);
 	border-radius: 9px;
 	background: var(--bg-elevated);
 	box-shadow: 0 16px 38px var(--shadow), 0 0 18px var(--accent-soft);
+}
+
+.more-menu-group-label {
+	padding: 5px 10px 4px;
+	color: var(--text-faint);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+.more-menu-divider {
+	height: 1px;
+	margin: 5px 7px;
+	background: var(--border-subtle);
 }
 
 .more-menu-row {
@@ -270,16 +309,6 @@ onBeforeUnmount(() => {
 	.menu-item {
 		padding: 0 9px;
 		font-size: 13px;
-	}
-}
-
-@media screen and (max-width: 1359px) {
-	.menu-item-extra {
-		display: none;
-	}
-
-	.more-menu-wrap {
-		display: flex;
 	}
 }
 

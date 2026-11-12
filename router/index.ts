@@ -16,6 +16,9 @@ export const routes = {
 	guildSchedule: '/pages/guild/schedule/index',
 	tutorial: '/pages/tutorial/index',
 	bugReport: '/pages/bug-report/index',
+	feedback: '/pages/feedback/index',
+	feedbackCreate: '/pages/feedback/create/index',
+	feedbackDetail: '/pages/feedback/detail/index',
 	support: '/pages/support/index',
 	openSource: '/pages/open-source/index',
 	login: '/pages/login/index',
@@ -31,4 +34,8 @@ export function navigateTo(path: AppRoute): void {
 
 export function redirectTo(path: AppRoute): void {
 	uni.redirectTo({ url: path });
+}
+
+export function reLaunch(path: AppRoute): void {
+	uni.reLaunch({ url: path });
 }

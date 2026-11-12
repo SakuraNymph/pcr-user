@@ -214,7 +214,7 @@ export default defineComponent({
 				{
 					target: '.filter-group.difficulty-group.guide-target-difficulty',
 					title: '难度筛选',
-					description: '按作业链接的难度筛选，例如纯 AUTO、SET 或目押。',
+					description: '按作业链接的难度筛选，例如 AUTO、SET 或目押。',
 				},
 				{
 					target: '.filter-group.attack-group.guide-target-attack',
@@ -244,7 +244,7 @@ export default defineComponent({
 			// 难度选项
 			difficultyOptions: [
 				{ label: '全部', value: 0 },
-				{ label: '纯 AUTO', value: 1 },
+				{ label: 'AUTO', value: 1 },
 				{ label: '简单 SET', value: 2 },
 				{ label: '开关 SET', value: 3 },
 				{ label: '简单目押', value: 4 },

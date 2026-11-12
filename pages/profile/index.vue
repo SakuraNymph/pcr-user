@@ -58,37 +58,26 @@
 					<view class="profile-section">
 						<view class="section-heading">
 							<view>
-								<view class="section-title">账户资料</view>
-								<view class="section-subtitle">管理昵称和登录密码</view>
+								<view class="section-title">个人功能</view>
+								<view class="section-subtitle">常用账号、作业与公会入口</view>
 							</view>
 						</view>
 
 						<view class="action-list">
-							<view class="action-row" @click="nicknameModalVisible = true">
+							<view class="action-row" @click="navigateTo(routes.account)">
 								<view class="action-copy">
-									<view class="action-title">修改昵称</view>
-									<view class="action-description">当前昵称：{{ displayNickname }}</view>
+									<view class="action-title">我的账号</view>
+									<view class="action-description">管理账号角色池与账号配置</view>
 								</view>
 								<view class="action-arrow">→</view>
 							</view>
-							<view class="action-row" @click="passwordModalVisible = true">
+							<view class="action-row" @click="navigateTo(routes.jobs)">
 								<view class="action-copy">
-									<view class="action-title">修改密码</view>
-									<view class="action-description">验证原密码后设置新密码</view>
+									<view class="action-title">我的作业</view>
+									<view class="action-description">查看和管理个人作业</view>
 								</view>
 								<view class="action-arrow">→</view>
 							</view>
-						</view>
-					</view>
-
-					<view class="profile-section">
-						<view class="section-heading">
-							<view>
-								<view class="section-title">我的公会</view>
-								<view class="section-subtitle">管理公会关系与成员邀请</view>
-							</view>
-						</view>
-						<view class="action-list">
 							<view class="action-row" @click="navigateTo(routes.guild)">
 								<view class="action-copy">
 									<view class="action-title">我的公会</view>
@@ -117,19 +106,39 @@
 								</view>
 								<view class="action-arrow">→</view>
 							</view>
+							<view class="action-row" @click="navigateTo(routes.feedback)">
+								<view class="action-copy">
+									<view class="action-title">意见反馈</view>
+									<view class="action-description">提交问题、建议并查看官方回复</view>
+								</view>
+								<view class="action-arrow">→</view>
+							</view>
 						</view>
 					</view>
 
 					<view class="profile-section">
 						<view class="section-heading">
 							<view>
-								<view class="section-title">其他功能</view>
-								<view class="section-subtitle">更多账号能力将陆续开放</view>
+								<view class="section-title">账户资料</view>
+								<view class="section-subtitle">管理昵称和登录密码</view>
 							</view>
 						</view>
-						<view class="other-panel">
-							<view class="other-note">这里将用于承载后续账号相关功能。</view>
-							<view class="account-link" @click="navigateTo(routes.account)">前往我的账号 →</view>
+
+						<view class="action-list">
+							<view class="action-row" @click="nicknameModalVisible = true">
+								<view class="action-copy">
+									<view class="action-title">修改昵称</view>
+									<view class="action-description">当前昵称：{{ displayNickname }}</view>
+								</view>
+								<view class="action-arrow">→</view>
+							</view>
+							<view class="action-row" @click="passwordModalVisible = true">
+								<view class="action-copy">
+									<view class="action-title">修改密码</view>
+									<view class="action-description">验证原密码后设置新密码</view>
+								</view>
+								<view class="action-arrow">→</view>
+							</view>
 						</view>
 					</view>
 				</template>
@@ -496,31 +505,6 @@ function closeModals(): void {
 	font-weight: 700;
 }
 
-.other-panel {
-	margin-top: 14px;
-	padding: 16px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 16px;
-	border: 1px solid var(--border-subtle);
-	border-radius: 8px;
-	background: var(--bg-panel-soft);
-}
-
-.other-note {
-	color: var(--text-faint);
-	font-size: 12px;
-}
-
-.account-link {
-	flex: 0 0 auto;
-	color: var(--accent-text);
-	font-size: 13px;
-	font-weight: 700;
-	cursor: pointer;
-}
-
 .profile-state {
 	min-height: 340px;
 	display: flex;
@@ -638,11 +622,6 @@ function closeModals(): void {
 	.avatar-action {
 		width: 100%;
 		margin-left: 0;
-	}
-
-	.other-panel {
-		align-items: flex-start;
-		flex-direction: column;
 	}
 }
 

@@ -21,16 +21,23 @@
 					<view class="more-handle"></view>
 					<view class="more-heading">更多功能</view>
 					<view
-						v-for="item in moreItems"
-						:key="item.key"
-						class="more-item"
-						role="menuitem"
-						tabindex="0"
-						@click="selectMore(item)"
+						v-for="group in moreGroups"
+						:key="group.key"
+						class="more-group"
 					>
-						<text class="more-icon">{{ item.icon }}</text>
-						<text class="more-label">{{ item.label }}</text>
-						<text class="more-arrow">›</text>
+						<view class="more-group-title">{{ group.label }}</view>
+						<view
+							v-for="item in group.items"
+							:key="item.key"
+							class="more-item"
+							role="menuitem"
+							tabindex="0"
+							@click="selectMore(item)"
+						>
+							<text class="more-icon">{{ item.icon }}</text>
+							<text class="more-label">{{ item.label }}</text>
+							<text v-if="item.path || item.action" class="more-arrow">›</text>
+						</view>
 					</view>
 					<view class="more-cancel" @click="closeMore">取消</view>
 				</view>
@@ -42,6 +49,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { redirectTo, routes, type AppRoute } from '../router';
+import { confirmGuideReset } from '../utils/guide';
 
 const props = defineProps<{ activeMenu: string }>();
 
@@ -50,6 +58,13 @@ interface NavItem {
 	label: string;
 	icon: string;
 	path: AppRoute | null;
+	action?: 'resetGuide';
+}
+
+interface NavGroup {
+	key: string;
+	label: string;
+	items: NavItem[];
 }
 
 const moreOpen = ref(false);
@@ -57,38 +72,53 @@ const moreOpen = ref(false);
 const navItems: NavItem[] = [
 	{ key: 'home', label: '作业列表', icon: '⌂', path: routes.home },
 	{ key: 'jobs', label: '我的作业', icon: '☑', path: routes.jobs },
-	{ key: 'account', label: '我的账号', icon: '♙', path: routes.account },
+	{ key: 'profile', label: '我的', icon: '♙', path: routes.profile },
 	{ key: 'more', label: '更多', icon: '⋯', path: null },
 ];
 
-const moreItems: NavItem[] = [
-	{ key: 'threeHitSet', label: 'D面套餐（上月数据，仅供体验）', icon: '⌘', path: routes.threeHitSet },
-	{ key: 'sixHitSet', label: '满补套餐（上月数据，仅供体验）', icon: '♧', path: routes.sixHitSet },
-	{ key: 'help', label: '使用说明', icon: '⊞', path: routes.help },
-	{ key: 'guild', label: '我的公会', icon: '◇', path: routes.guild },
-	{ key: 'tutorial', label: '使用教程', icon: '▤', path: routes.tutorial },
-	{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
-	{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
-	{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource },
+const moreGroups: NavGroup[] = [
+	{
+		key: 'package',
+		label: '套餐',
+		items: [
+			{ key: 'threeHitSet', label: 'D面套餐', icon: '⌘', path: routes.threeHitSet },
+			{ key: 'sixHitSet', label: '满补套餐', icon: '♧', path: routes.sixHitSet },
+		],
+	},
+	{
+		key: 'help',
+		label: '帮助',
+		items: [
+			{ key: 'tutorial', label: '使用教程', icon: '▤', path: null, action: 'resetGuide' },
+			{ key: 'bugReport', label: 'BUG反馈', icon: '⚠', path: routes.bugReport },
+		],
+	},
+	{
+		key: 'project',
+		label: '项目',
+		items: [
+			{ key: 'support', label: '支持作者', icon: '♥', path: routes.support },
+			{ key: 'openSource', label: '开源项目', icon: '◈', path: routes.openSource },
+		],
+	},
 ];
 
 const activeGroupByMenu: Record<string, string> = {
 	home: 'home',
 	teamLinksDemo: 'home',
 	jobs: 'jobs',
-	account: 'account',
-	profile: 'account',
-	coinShop: 'account',
-	gachaStats: 'account',
+	account: 'profile',
+	profile: 'profile',
+	coinShop: 'profile',
+	gachaStats: 'profile',
+	guild: 'profile',
+	guildSearch: 'profile',
+	guildDetail: 'profile',
+	guildInvitations: 'profile',
+	guildApplications: 'profile',
+	guildSchedule: 'profile',
 	threeHitSet: 'more',
 	sixHitSet: 'more',
-	help: 'more',
-	guild: 'more',
-	guildSearch: 'more',
-	guildDetail: 'more',
-	guildInvitations: 'more',
-	guildApplications: 'more',
-	guildSchedule: 'more',
 	tutorial: 'more',
 	bugReport: 'more',
 	support: 'more',
@@ -108,8 +138,12 @@ function handleNav(item: NavItem): void {
 }
 
 function selectMore(item: NavItem): void {
-	if (!item.path) return;
 	moreOpen.value = false;
+	if (item.action === 'resetGuide') {
+		confirmGuideReset();
+		return;
+	}
+	if (!item.path) return;
 	redirectTo(item.path);
 }
 
@@ -160,6 +194,20 @@ function closeMore(): void {
 	color: var(--text-primary);
 	font-size: 15px;
 	font-weight: 700;
+}
+
+.more-group + .more-group {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--border-subtle);
+}
+
+.more-group-title {
+	padding: 2px 12px 5px;
+	color: var(--text-faint);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
 }
 
 .more-item {

@@ -425,16 +425,13 @@ export interface Team {
 	link?: TeamLink[];
 }
 
-export type SystemTripleMode = 1 | 2;
-
-export type SystemTripleAttackType = 0 | 1 | 2 | 3 | 4;
+export type SystemDifficulty = 1 | 2 | 3 | 4 | 5;
 
 export interface SystemTripleRequest {
 	row1: number;
 	row2: number;
 	row3: number;
-	type: SystemTripleMode;
-	atk: SystemTripleAttackType;
+	difficulty: SystemDifficulty;
 	lockedIds: number[];
 	hiddenIds: number[];
 	accountId?: number;
@@ -471,16 +468,13 @@ export interface SystemTripleTeam {
 
 export type SystemTripleCombination = SystemTripleTeam[];
 
-export type SystemSixHitMode = 1 | 2;
-
 export type SystemSixHitStage = 0 | 2 | 3;
 
 export interface SystemSixHitRequest {
 	lowBosses: number[];
 	highBosses: number[];
-	mode: SystemSixHitMode;
+	difficulty: SystemDifficulty;
 	stage: SystemSixHitStage;
-	atkType: SystemTripleAttackType;
 	accountId?: number;
 	lockedIds: number[];
 	hiddenIds: number[];
@@ -497,4 +491,72 @@ export interface SystemSixHitPackage {
 	overlap: number;
 	permutation_index: number;
 	pairs: SystemSixHitPair[];
+}
+
+export type FeedbackCategory = 1 | 2 | 3 | 4;
+
+export type FeedbackStatus = 0 | 1 | 2 | 3;
+
+export interface FeedbackListItem {
+	id: number;
+	category: FeedbackCategory;
+	category_name: string;
+	title: string;
+	status: FeedbackStatus;
+	status_name: string;
+	unread_count: number;
+	created_at: string | null;
+	last_message_at: string | null;
+}
+
+export interface FeedbackListPage {
+	items: FeedbackListItem[];
+	page: number;
+	per_page: number;
+	total: number;
+	last_page: number;
+}
+
+export interface FeedbackImage {
+	id: number;
+	url: string;
+	original_name: string;
+	mime_type: string;
+	file_size: number;
+}
+
+export interface FeedbackMessage {
+	id: number;
+	sender_type: 1 | 2;
+	content: string | null;
+	images: FeedbackImage[];
+	read_at: string | null;
+	created_at: string | null;
+}
+
+export interface FeedbackDetail {
+	id: number;
+	category: FeedbackCategory;
+	category_name: string;
+	title: string;
+	status: FeedbackStatus;
+	status_name: string;
+	client_type: string | null;
+	client_version: string | null;
+	created_at: string | null;
+	last_message_at: string | null;
+	unread_count: number;
+	messages: FeedbackMessage[];
+}
+
+export interface FeedbackReplyResult {
+	message: FeedbackMessage;
+	status: FeedbackStatus;
+	status_name: string;
+	last_message_at: string | null;
+}
+
+export interface FeedbackReadResult {
+	read_count: number;
+	unread_count: number;
 }

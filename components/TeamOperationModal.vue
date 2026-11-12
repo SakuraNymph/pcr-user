@@ -24,7 +24,7 @@
 
 			<view class="team-operation-body">
 				<view
-					class="team-operation-option team-operation-lock"
+					class="team-operation-option team-operation-lock team-guide-target-lock"
 					:class="{ 'is-disabled': locked }"
 					role="button"
 					:tabindex="locked ? -1 : 0"

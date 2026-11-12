@@ -48,7 +48,7 @@ export interface ResetPasswordPayload {
 	password_confirmation: string;
 }
 
-export type GuideLocation = 'list';
+export type GuideLocation = 'list' | 'post' | 'team' | 'account' | 'group';
 
 function assertSuccess<T>(response: ApiEnvelope<T>, fallback: string): T {
 	if (response?.status !== 0) {
@@ -166,4 +166,9 @@ export async function getGuideConfig(location: GuideLocation): Promise<boolean> 
 
 export async function saveGuideConfig(location: GuideLocation): Promise<void> {
 	await post<unknown, { location: GuideLocation }>('/api/user/guide-config', { location });
+}
+
+export async function resetGuideConfig(): Promise<void> {
+	const response = await post<ApiEnvelope<unknown>>('/api/user/guide-config/reset');
+	assertSuccess(response, '重置使用教程失败');
 }
