@@ -6,12 +6,24 @@
 		<input v-model="email" class="auth-input" type="text" maxlength="255" placeholder="请输入邮箱" />
 		<view class="field-label">密码</view>
 		<input v-model="password" class="auth-input" type="text" password placeholder="请输入密码" />
+		<view class="forgot-row">
+			<text class="auth-link" @click="openForgotPassword">忘记密码？</text>
+		</view>
 		<view class="submit-button" :class="{ disabled: submitting }" @click="submit">
 			{{ submitting ? '登录中...' : '登录' }}
 		</view>
 		<view class="auth-switch">
 			还没有账号？<text class="auth-link" @click="navigateTo(routes.register)">立即注册</text>
 		</view>
+		<UserPasswordModal
+			v-if="forgotPasswordVisible"
+			:email="email"
+			initial-mode="forgot"
+			email-editable
+			:allow-change-mode="false"
+			@close="forgotPasswordVisible = false"
+			@reset="handlePasswordReset"
+		/>
 	</AuthLayout>
 </template>
 
@@ -19,15 +31,30 @@
 import { ref } from 'vue';
 import { errorMessage } from '../../api/errors';
 import { loginUser } from '../../api/user';
+import UserPasswordModal from '../../components/UserPasswordModal.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
 import { navigateTo, redirectTo, routes } from '../../router';
 
 const email = ref('');
 const password = ref('');
 const submitting = ref(false);
+const forgotPasswordVisible = ref(false);
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function openForgotPassword(): void {
+	forgotPasswordVisible.value = true;
+}
+
+function handlePasswordReset(resetEmail: string): void {
+	forgotPasswordVisible.value = false;
+	email.value = resetEmail;
+	password.value = '';
+	uni.showToast({
+		title: '密码重置成功，请使用新密码登录',
+		icon: 'none',
+	});
+}
 
 async function submit(): Promise<void> {
 	if (submitting.value) {
@@ -84,6 +111,16 @@ async function submit(): Promise<void> {
 	background: var(--bg-input);
 	color: #fff;
 	font-size: 14px;
+}
+
+.forgot-row {
+	margin-top: 9px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.forgot-row .auth-link {
+	margin-left: 0;
 }
 
 .submit-button {

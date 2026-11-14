@@ -4,7 +4,7 @@
 			class="profile-modal"
 			role="dialog"
 			aria-modal="true"
-			aria-label="修改密码"
+			:aria-label="modalTitle"
 			@click.stop
 		>
 			<view class="profile-modal-header">
@@ -70,16 +70,35 @@
 					<view class="reset-step">第 {{ forgotStep }} 步 / 共 3 步</view>
 
 					<view class="reset-email-box">
-						<view class="field-label">绑定邮箱</view>
-						<view class="reset-email">{{ maskedEmail }}</view>
+						<view class="field-label">
+							{{ isEmailEditable ? '注册邮箱' : '绑定邮箱' }}
+						</view>
+						<input
+							v-if="isEmailEditable"
+							v-model="editableEmail"
+							class="profile-input reset-email-input"
+							type="text"
+							maxlength="255"
+							placeholder="请输入注册邮箱"
+							:disabled="sendingCode"
+						/>
+						<view v-else class="reset-email">{{ maskedEmail }}</view>
 						<view class="reset-email-note">
-							验证码只会发送到当前账号绑定的邮箱，无法修改。
+							{{
+								isEmailEditable
+									? '如果该邮箱已注册，验证码将发送到该邮箱。'
+									: '验证码只会发送到当前账号绑定的邮箱，无法修改。'
+							}}
 						</view>
 					</view>
 
 					<template v-if="forgotStep === 1">
 						<view class="profile-hint reset-hint">
-							点击下方「发送验证码」，我们会向绑定邮箱发送 6 位验证码。
+							{{
+								isEmailEditable
+									? '请输入注册邮箱并点击「发送验证码」。'
+									: '点击下方「发送验证码」，我们会向绑定邮箱发送 6 位验证码。'
+							}}
 						</view>
 					</template>
 
@@ -96,7 +115,15 @@
 								@confirm="verifyResetCode"
 							/>
 						</view>
-						<view class="reset-resend-row">
+						<view class="reset-resend-row reset-link-row">
+							<text
+								v-if="isEmailEditable"
+								class="forgot-link"
+								:class="{ disabled: verifyingCode || sendingCode }"
+								@click="changeResetEmail"
+							>
+								更换邮箱
+							</text>
 							<text
 								class="forgot-link"
 								:class="{ disabled: countdown > 0 || sendingCode }"
@@ -155,7 +182,9 @@
 					</view>
 				</template>
 				<template v-else>
-					<view class="modal-button" @click="backToChange">返回修改密码</view>
+					<view class="modal-button" @click="handleSecondaryAction">
+						{{ secondaryButtonText }}
+					</view>
 					<view
 						class="modal-button primary"
 						:class="{ disabled: !canForgotSubmit }"
@@ -184,21 +213,25 @@ type ForgotStep = 1 | 2 | 3;
 
 const props = defineProps<{
 	email?: string;
+	initialMode?: PasswordModalMode;
+	emailEditable?: boolean;
+	allowChangeMode?: boolean;
 }>();
 
 const emit = defineEmits<{
 	(event: 'close'): void;
 	(event: 'saved'): void;
-	(event: 'reset'): void;
+	(event: 'reset', email: string): void;
 }>();
 
-const mode = ref<PasswordModalMode>('change');
+const mode = ref<PasswordModalMode>(props.initialMode ?? 'change');
 const forgotStep = ref<ForgotStep>(1);
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
 const submitting = ref(false);
 const errorText = ref('');
+const editableEmail = ref((props.email || '').trim());
 
 const verificationCode = ref('');
 const resetToken = ref('');
@@ -212,7 +245,20 @@ const forgotNotice = ref('');
 const countdown = ref(0);
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
-const maskedEmail = computed(() => maskEmail(props.email || ''));
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isEmailEditable = computed(() => props.emailEditable === true);
+const canChangeMode = computed(() => props.allowChangeMode !== false);
+const activeEmail = computed(() => (
+	isEmailEditable.value
+		? editableEmail.value.trim()
+		: (props.email || '').trim()
+));
+const isEmailValid = computed(() => (
+	activeEmail.value.length > 0
+	&& activeEmail.value.length <= 255
+	&& emailPattern.test(activeEmail.value)
+));
+const maskedEmail = computed(() => maskEmail(activeEmail.value));
 
 const modalTitle = computed(() => {
 	if (mode.value === 'change') {
@@ -232,9 +278,13 @@ const modalSubtitle = computed(() => {
 		return '修改后当前登录状态保持不变';
 	}
 	if (forgotStep.value === 3) {
-		return '重置后其他设备将退出登录';
+		return canChangeMode.value
+			? '重置后其他设备将退出登录'
+			: '重置后所有设备将退出登录';
 	}
-	return '通过绑定邮箱验证后重置密码';
+	return isEmailEditable.value
+		? '通过注册邮箱验证后重置密码'
+		: '通过绑定邮箱验证后重置密码';
 });
 
 const canSubmit = computed(() => (
@@ -269,7 +319,11 @@ const forgotPrimaryText = computed(() => {
 
 const canForgotSubmit = computed(() => {
 	if (forgotStep.value === 1) {
-		return !sendingCode.value && countdown.value === 0;
+		return (
+			!sendingCode.value
+			&& countdown.value === 0
+			&& isEmailValid.value
+		);
 	}
 	if (forgotStep.value === 2) {
 		return !verifyingCode.value && /^\d{6}$/.test(verificationCode.value);
@@ -281,6 +335,10 @@ const canForgotSubmit = computed(() => {
 		&& resetPassword.value === resetPasswordConfirmation.value
 	);
 });
+
+const secondaryButtonText = computed(() => (
+	canChangeMode.value ? '返回修改密码' : '返回登录'
+));
 
 watch([currentPassword, newPassword, confirmPassword], () => {
 	errorText.value = '';
@@ -464,8 +522,15 @@ async function sendResetCode(): Promise<void> {
 		return;
 	}
 
-	if (!props.email?.trim()) {
-		forgotError.value = '当前账号未绑定邮箱，无法找回密码';
+	if (!activeEmail.value) {
+		forgotError.value = isEmailEditable.value
+			? '请输入注册邮箱'
+			: '当前账号未绑定邮箱，无法找回密码';
+		return;
+	}
+
+	if (!isEmailValid.value) {
+		forgotError.value = '请输入有效的邮箱地址';
 		return;
 	}
 
@@ -474,7 +539,7 @@ async function sendResetCode(): Promise<void> {
 	forgotNotice.value = '';
 
 	try {
-		const result = await sendPasswordResetCode();
+		const result = await sendPasswordResetCode(activeEmail.value);
 		const retryAfter = result.retry_after || 60;
 		const expiresIn = result.expires_in || 300;
 		const minutes = Math.max(1, Math.round(expiresIn / 60));
@@ -482,7 +547,9 @@ async function sendResetCode(): Promise<void> {
 		startCountdown(retryAfter);
 		verificationCode.value = '';
 		forgotStep.value = 2;
-		forgotNotice.value = `验证码已发送至 ${maskedEmail.value}，${minutes} 分钟内有效`;
+		forgotNotice.value = isEmailEditable.value
+			? `如果该邮箱已注册，验证码将发送至 ${maskedEmail.value}，${minutes} 分钟内有效`
+			: `验证码已发送至 ${maskedEmail.value}，${minutes} 分钟内有效`;
 	} catch (error) {
 		forgotError.value = errorMessage(error, '验证码发送失败，请稍后重试');
 	} finally {
@@ -507,7 +574,10 @@ async function verifyResetCode(): Promise<void> {
 	forgotNotice.value = '';
 
 	try {
-		const result = await verifyPasswordResetCode(code);
+		const result = await verifyPasswordResetCode(
+			activeEmail.value,
+			code,
+		);
 
 		resetToken.value = result.reset_token;
 		verificationCode.value = '';
@@ -555,7 +625,7 @@ async function submitResetPassword(): Promise<void> {
 		currentPassword.value = '';
 		newPassword.value = '';
 		confirmPassword.value = '';
-		emit('reset');
+		emit('reset', activeEmail.value);
 	} catch (error) {
 		const message = errorMessage(error, '密码重置失败，请稍后重试');
 		forgotError.value = message;
@@ -569,6 +639,25 @@ async function submitResetPassword(): Promise<void> {
 	} finally {
 		resettingPassword.value = false;
 	}
+}
+
+function changeResetEmail(): void {
+	if (isBusy()) return;
+	verificationCode.value = '';
+	resetToken.value = '';
+	forgotError.value = '';
+	forgotNotice.value = '';
+	countdown.value = 0;
+	clearCountdownTimer();
+	forgotStep.value = 1;
+}
+
+function handleSecondaryAction(): void {
+	if (canChangeMode.value) {
+		backToChange();
+		return;
+	}
+	close();
 }
 
 function handleForgotPrimary(): void {
@@ -746,6 +835,10 @@ function handleForgotPrimary(): void {
 	margin-top: 9px;
 	display: flex;
 	justify-content: flex-end;
+}
+
+.reset-link-row {
+	gap: 14px;
 }
 
 .profile-error,

@@ -4,6 +4,9 @@
 		<view class="auth-subtitle">注册 PCR 作业站账号</view>
 		<view class="field-label">邮箱</view>
 		<input v-model="email" class="auth-input" type="text" maxlength="255" placeholder="请输入邮箱" />
+		<view v-if="emailDeliveryHint" class="email-delivery-hint">
+			{{ emailDeliveryHint }}
+		</view>
 		<view class="field-label">验证码</view>
 		<view class="code-row">
 			<input v-model="code" class="auth-input code-input" type="text" maxlength="6" placeholder="请输入 6 位验证码" />
@@ -35,6 +38,7 @@
 import { computed, onUnmounted, ref } from 'vue';
 import { errorMessage } from '../../api/errors';
 import { registerUser, sendRegisterCode } from '../../api/user';
+import { getEmailDeliveryHint } from '../../config/email-providers';
 import AuthLayout from '../../layouts/AuthLayout.vue';
 import { navigateTo, redirectTo, routes } from '../../router';
 import { utf8ByteLength } from '../../utils/text';
@@ -52,6 +56,9 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isEmailValid = computed(() =>
 	emailPattern.test(email.value.trim()) && Array.from(email.value.trim()).length <= 255,
 );
+const emailDeliveryHint = computed(() => (
+	isEmailValid.value ? getEmailDeliveryHint(email.value) : null
+));
 const canSendCode = computed(() =>
 	isEmailValid.value &&
 	!sendingCode.value &&
@@ -96,7 +103,12 @@ async function sendCode(): Promise<void> {
 	try {
 		await sendRegisterCode(email.value.trim());
 		startCodeCountdown();
-		uni.showToast({ title: '验证码已发送', icon: 'success' });
+		uni.showToast({
+			title: emailDeliveryHint.value
+				? '验证码已发送，请同时检查垃圾箱'
+				: '验证码已发送',
+			icon: emailDeliveryHint.value ? 'none' : 'success',
+		});
 	} catch (error) {
 		uni.showToast({ title: errorMessage(error, '验证码发送失败，请稍后重试'), icon: 'none' });
 	} finally {
@@ -187,6 +199,17 @@ async function submit(): Promise<void> {
 	background: var(--bg-input);
 	color: #fff;
 	font-size: 14px;
+}
+
+.email-delivery-hint {
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 7px;
+	background: var(--bg-subtle);
+	color: var(--warning);
+	font-size: 12px;
+	line-height: 1.6;
 }
 
 .code-row {

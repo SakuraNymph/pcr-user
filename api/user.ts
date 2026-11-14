@@ -124,20 +124,27 @@ export async function updateUserPassword(
 	assertSuccess(response, '修改密码失败');
 }
 
-export async function sendPasswordResetCode(): Promise<PasswordResetCodeResult> {
-	const response = await post<ApiEnvelope<PasswordResetCodeResult>>(
+export async function sendPasswordResetCode(
+	email: string,
+): Promise<PasswordResetCodeResult> {
+	const response = await post<
+		ApiEnvelope<PasswordResetCodeResult>,
+		{ email: string }
+	>(
 		'/api/user/password/reset-code',
+		{ email },
 	);
 	return assertSuccess(response, '验证码发送失败');
 }
 
 export async function verifyPasswordResetCode(
+	email: string,
 	code: string,
 ): Promise<PasswordResetVerifyResult> {
 	const response = await post<
 		ApiEnvelope<PasswordResetVerifyResult>,
-		{ code: string }
-	>('/api/user/password/verify-code', { code });
+		{ email: string; code: string }
+	>('/api/user/password/verify-code', { email, code });
 	return assertSuccess(response, '验证码验证失败');
 }
 
