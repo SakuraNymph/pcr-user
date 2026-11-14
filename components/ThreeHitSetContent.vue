@@ -1,6 +1,10 @@
 <template>
 	<view class="three-set-page">
-			<view v-if="!authRequired" class="three-set-filter-panel">
+			<view
+				v-if="!authRequired"
+				class="three-set-filter-panel"
+				:class="{ 'three-set-filter-panel--stretch': !isUserSource }"
+			>
 				<view class="three-hit-filter-body">
 					<view class="three-set-boss-column team-guide-target-boss">
 						<view class="three-set-boss-filters">
@@ -40,7 +44,34 @@
 
 					<view class="three-set-filter-options team-guide-target-filters">
 						<view class="three-set-filter-bottom">
-							<view class="three-set-filter-group three-set-difficulty-filter">
+							<view
+								v-if="isUserSource"
+								class="three-set-filter-group three-set-mode-filter"
+							>
+								<view class="three-set-filter-label">
+									模式
+								</view>
+								<view class="three-set-choice-list">
+									<view
+										v-for="option in modeOptions"
+										:key="option.value"
+										class="three-set-choice"
+										:class="[{ active: selectedMode === option.value }, 'mode-choice-' + option.value]"
+										:aria-pressed="selectedMode === option.value"
+										role="button"
+										tabindex="0"
+										@click="selectMode(option.value)"
+										@keydown.enter.prevent="selectMode(option.value)"
+										@keydown.space.prevent="selectMode(option.value)"
+									>
+										{{ option.label }}
+									</view>
+								</view>
+							</view>
+							<view
+								v-else
+								class="three-set-filter-group three-set-difficulty-filter"
+							>
 								<view class="three-set-filter-label">
 									难度
 								</view>
@@ -79,13 +110,31 @@
 				<view class="three-set-empty-title">正在匹配{{ periodLabel }}{{ tripleSourceLabel }}三刀组合</view>
 				<view class="three-set-empty-hint">请稍候，正在按当前筛选条件计算</view>
 			</view>
-			<view v-else-if="loadError" class="three-set-empty">
+			<view v-else-if="loadError && !displayPackages.length" class="three-set-empty">
 				<view class="three-set-empty-icon">!</view>
 				<view class="three-set-empty-title">获取组合失败</view>
 				<view class="three-set-empty-hint">{{ loadError }}</view>
 				<view class="three-set-empty-reset" @click="retryLoad">重新加载</view>
 			</view>
-			<view v-else-if="displayPackages.length" class="three-set-grid team-guide-target-results">
+			<view
+				v-else-if="displayPackages.length"
+				class="three-set-results"
+				:class="{ 'is-refreshing': showRefreshIndicator }"
+				:aria-busy="refreshing"
+			>
+				<view
+					v-if="showRefreshIndicator"
+					class="three-set-refresh-bar"
+					role="status"
+					aria-label="正在刷新筛选结果"
+				></view>
+				<view v-if="loadError" class="three-set-inline-error">
+					<text class="three-set-inline-error-text">{{ loadError }}</text>
+					<view class="three-set-inline-error-retry" @click="retryLoad">重试</view>
+				</view>
+				<view
+					class="three-set-grid team-guide-target-results"
+				>
 				<view
 					v-for="(pkg, packageIndex) in displayPackages"
 					:key="pkg.id"
@@ -266,7 +315,11 @@
 					</view>
 				</view>
 			</view>
+			</view>
 			<view v-else class="three-set-empty">
+				<view v-if="showRefreshIndicator" class="three-set-refresh-inline" role="status">
+					正在刷新…
+				</view>
 				<view class="three-set-empty-icon">⌕</view>
 				<view class="three-set-empty-title">没有找到符合条件的套餐</view>
 				<view class="three-set-empty-hint">调整 BOSS 或筛选条件后再试试</view>
@@ -310,6 +363,7 @@ import TeamOperationModal from './TeamOperationModal.vue';
 
 type TriplePeriod = 'current-month' | 'previous-month';
 type TripleSource = 'system' | 'user';
+type TeamMode = 1 | 2;
 
 const props = withDefaults(defineProps<{
 	period?: TriplePeriod;
@@ -359,6 +413,15 @@ interface DisplayPackage {
 	hits: DisplayHit[];
 }
 
+interface CachedTripleResult {
+	data: SystemTripleCombination[];
+	storedAt: number;
+}
+
+const RESULT_CACHE_TTL = 30_000;
+const RESULT_CACHE_LIMIT = 12;
+const preloadedResultImages = new Set<string>();
+
 const fallbackBosses: Boss[] = [1, 2, 3, 4, 5].map((sort) => ({
 	id: 'fallback-boss-' + sort,
 	sort,
@@ -370,10 +433,15 @@ const bosses = ref<Boss[]>(fallbackBosses);
 const roleOptions = ref<GameRoleOption[]>([]);
 const selectedBosses = ref<Array<number | null>>([null, null, null]);
 const selectedDifficulty = ref<SystemDifficulty>(1);
+const selectedMode = ref<TeamMode>(1);
 const failedBossImages = ref<number[]>([]);
 const failedRoleImages = ref<string[]>([]);
 const combinations = ref<SystemTripleCombination[]>([]);
-const loading = ref(false);
+const resultCache = new Map<string, CachedTripleResult>();
+const loading = ref(true);
+const refreshing = ref(false);
+const showRefreshIndicator = ref(false);
+const hasSettledOnce = ref(false);
 const loadError = ref('');
 const loginRequired = ref(false);
 const linksPerPage = ref(4);
@@ -386,8 +454,9 @@ const operationRefreshing = ref(false);
 const importingPackageIndex = ref<number | null>(null);
 
 interface ScrollAnchor {
-	packageKey: string;
-	viewportTop: number;
+	mode: 'filter' | 'operation';
+	packageKey?: string;
+	viewportTop?: number;
 	scrollTop: number;
 	container: HTMLElement | Window | null;
 }
@@ -414,6 +483,11 @@ const difficultyOptions: Array<{ label: string; value: SystemDifficulty }> = [
 	{ label: '开关SET', value: 3 },
 	{ label: '简单目押', value: 4 },
 	{ label: '目押', value: 5 },
+];
+
+const modeOptions: Array<{ label: string; value: TeamMode }> = [
+	{ label: '自动', value: 1 },
+	{ label: '手动', value: 2 },
 ];
 
 const bossBySort = computed(() => new Map(
@@ -462,18 +536,23 @@ const operationLocked = computed(() => (
 ));
 
 let requestTimer: ReturnType<typeof setTimeout> | null = null;
+let refreshIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
 let loadSequence = 0;
+let lastAppliedKey = '';
+let currentContextKey = buildContextKey();
 
 watch(
 	[
 		selectedBosses,
 		selectedDifficulty,
+		selectedMode,
 		lockedIds,
 		hiddenIds,
 		() => props.period,
 		() => props.source,
 		() => props.accountId,
 		() => authState.isAuthenticated,
+		() => authState.user?.id,
 	],
 	() => scheduleLoad(),
 	{ deep: true },
@@ -491,6 +570,10 @@ onBeforeUnmount(() => {
 	if (requestTimer) {
 		clearTimeout(requestTimer);
 		requestTimer = null;
+	}
+	if (refreshIndicatorTimer) {
+		clearTimeout(refreshIndicatorTimer);
+		refreshIndicatorTimer = null;
 	}
 	loadSequence += 1;
 });
@@ -538,8 +621,139 @@ function buildDisplayPackage(
 	};
 }
 
+function buildContextKey(): string {
+	return JSON.stringify([
+		props.period,
+		props.source,
+		props.accountId,
+		authState.isAuthenticated ? String(authState.user?.id ?? 'user') : 'guest',
+	]);
+}
+
+function buildRequestKey(payload: SystemTripleRequest): string {
+	return JSON.stringify([
+		buildContextKey(),
+		payload.row1,
+		payload.row2,
+		payload.row3,
+		payload.difficulty ?? 0,
+		payload.mode ?? 0,
+		payload.lockedIds,
+		payload.hiddenIds,
+	]);
+}
+
+function readCachedResult(key: string): SystemTripleCombination[] | null {
+	const cached = resultCache.get(key);
+
+	if (!cached) {
+		return null;
+	}
+
+	if (Date.now() - cached.storedAt > RESULT_CACHE_TTL) {
+		resultCache.delete(key);
+		return null;
+	}
+
+	return cached.data;
+}
+
+function writeCachedResult(key: string, data: SystemTripleCombination[]): void {
+	resultCache.delete(key);
+	resultCache.set(key, { data, storedAt: Date.now() });
+
+	while (resultCache.size > RESULT_CACHE_LIMIT) {
+		const oldestKey = resultCache.keys().next().value;
+
+		if (oldestKey === undefined) {
+			break;
+		}
+
+		resultCache.delete(oldestKey);
+	}
+}
+
+async function preloadResultImages(data: SystemTripleCombination[]): Promise<void> {
+	// #ifdef H5
+	if (typeof Image === 'undefined') {
+		return;
+	}
+
+	const urls = new Set<string>();
+
+	for (const team of data) {
+		for (const role of team.roles || []) {
+			const url = role.image_url || roleById.value.get(Number(role.role_id))?.image_url;
+
+			if (url && !preloadedResultImages.has(url)) {
+				urls.add(url);
+			}
+		}
+	}
+
+	const pending = Array.from(urls).slice(0, 60);
+
+	if (!pending.length) {
+		return;
+	}
+
+	await Promise.all(pending.map((url) => new Promise<void>((resolve) => {
+		let settled = false;
+		const finish = () => {
+			if (settled) {
+				return;
+			}
+
+			settled = true;
+			preloadedResultImages.add(url);
+			resolve();
+		};
+
+		try {
+			const image = new Image();
+			image.onload = finish;
+			image.onerror = finish;
+			image.src = url;
+		} catch {
+			finish();
+			return;
+		}
+
+		setTimeout(finish, 350);
+	})));
+	// #endif
+}
+
+async function applyCombinations(
+	data: SystemTripleCombination[],
+	sequence: number,
+): Promise<boolean> {
+	if (sequence !== loadSequence) {
+		return false;
+	}
+
+	combinations.value = data;
+	linkPages.value = {};
+	await nextTick();
+
+	if (sequence !== loadSequence) {
+		return false;
+	}
+
+	await restoreScrollAnchor().catch(() => undefined);
+
+	if (sequence !== loadSequence) {
+		return false;
+	}
+
+	stopRefreshFeedback();
+	refreshing.value = false;
+
+	return true;
+}
+
 async function importPackage(pkg: DisplayPackage, packageIndex: number): Promise<void> {
-	if (importingPackageIndex.value !== null) {
+	if (importingPackageIndex.value !== null || refreshing.value) {
 		return;
 	}
 
@@ -661,6 +875,7 @@ function writeScrollTop(container: HTMLElement | Window, value: number): void {
 
 function beginOperationRefresh(hit: DisplayHit): void {
 	operationRefreshing.value = true;
+	scrollAnchor = null;
 	const packageKey = findPackageKey(hit);
 
 	if (!packageKey) {
@@ -676,6 +891,7 @@ function beginOperationRefresh(hit: DisplayHit): void {
 
 	const container = findScrollContainer(element);
 	scrollAnchor = {
+		mode: 'operation',
 		packageKey,
 		viewportTop: element.getBoundingClientRect().top,
 		scrollTop: readScrollTop(container),
@@ -704,13 +920,15 @@ async function restoreScrollAnchor(): Promise<void> {
 		setTimeout(resolve, 0);
 	});
 
-	const element = document.getElementById(getPackageElementId(anchor.packageKey));
+	if (anchor.mode === 'operation' && anchor.packageKey && anchor.viewportTop !== undefined) {
+		const element = document.getElementById(getPackageElementId(anchor.packageKey));
 
-	if (element) {
-		const container = findScrollContainer(element);
-		const delta = element.getBoundingClientRect().top - anchor.viewportTop;
-		writeScrollTop(container, readScrollTop(container) + delta);
-		return;
+		if (element) {
+			const container = findScrollContainer(element);
+			const delta = element.getBoundingClientRect().top - anchor.viewportTop;
+			writeScrollTop(container, readScrollTop(container) + delta);
+			return;
+		}
 	}
 
 	if (anchor.container) {
@@ -774,9 +992,78 @@ async function loadVisualAssets(): Promise<void> {
 	}
 }
 
+function startRefreshFeedback(): void {
+	if (refreshIndicatorTimer || showRefreshIndicator.value) {
+		return;
+	}
+
+	refreshIndicatorTimer = setTimeout(() => {
+		refreshIndicatorTimer = null;
+
+		if (refreshing.value) {
+			showRefreshIndicator.value = true;
+		}
+	}, 220);
+}
+
+function stopRefreshFeedback(): void {
+	if (refreshIndicatorTimer) {
+		clearTimeout(refreshIndicatorTimer);
+		refreshIndicatorTimer = null;
+	}
+
+	showRefreshIndicator.value = false;
+}
+
+function captureCurrentScrollAnchor(): void {
+	scrollAnchor = null;
+
+	// #ifdef H5
+	const packageKey = displayPackages.value[0]?.id;
+
+	if (!packageKey) {
+		return;
+	}
+
+	const element = document.getElementById(getPackageElementId(packageKey));
+
+	if (!element) {
+		return;
+	}
+
+	const container = findScrollContainer(element);
+	scrollAnchor = {
+		mode: 'filter',
+		scrollTop: readScrollTop(container),
+		container,
+	};
+	// #endif
+}
+
 function scheduleLoad(delay = 180): void {
 	// Invalidate an in-flight response as soon as filters change, even while debouncing.
 	loadSequence += 1;
+
+	const nextContextKey = buildContextKey();
+
+	if (nextContextKey !== currentContextKey) {
+		currentContextKey = nextContextKey;
+		combinations.value = [];
+		linkPages.value = {};
+		hasSettledOnce.value = false;
+		lastAppliedKey = '';
+		loadError.value = '';
+		loginRequired.value = false;
+		loading.value = true;
+		refreshing.value = false;
+		operationRefreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
+	}
+
+	if (!operationRefreshing.value && combinations.value.length) {
+		refreshing.value = true;
+	}
 
 	if (requestTimer) {
 		clearTimeout(requestTimer);
@@ -794,35 +1081,87 @@ async function loadPackages(): Promise<void> {
 	if (requiresRegisteredUser.value && !authState.isAuthenticated) {
 		combinations.value = [];
 		loading.value = false;
+		refreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
 		operationRefreshing.value = false;
 		loadError.value = '';
 		loginRequired.value = false;
+		hasSettledOnce.value = true;
 		return;
 	}
 
 	if (accountMissing.value) {
 		combinations.value = [];
 		loading.value = false;
+		refreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
 		operationRefreshing.value = false;
 		loadError.value = '请选择游戏账号后再进行 D 面分刀';
 		loginRequired.value = false;
+		hasSettledOnce.value = true;
 		return;
 	}
 
-	loading.value = true;
+	const payload: SystemTripleRequest = {
+		row1: selectedBosses.value[0] ?? 0,
+		row2: selectedBosses.value[1] ?? 0,
+		row3: selectedBosses.value[2] ?? 0,
+		...(isUserSource.value
+			? { mode: selectedMode.value }
+			: { difficulty: selectedDifficulty.value }),
+		lockedIds: [...lockedIds.value],
+		hiddenIds: [...hiddenIds.value],
+		...(requiresAccount.value ? { accountId: props.accountId } : {}),
+	};
+	const requestKey = buildRequestKey(payload);
+	const isRefresh = hasSettledOnce.value || combinations.value.length > 0;
+
+	if (lastAppliedKey === requestKey && !loadError.value) {
+		loading.value = false;
+		refreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
+		operationRefreshing.value = false;
+		return;
+	}
+
+	if (isRefresh && !operationRefreshing.value && combinations.value.length) {
+		captureCurrentScrollAnchor();
+	}
+
+	const cached = readCachedResult(requestKey);
+
+	if (cached) {
+		loadError.value = '';
+		loginRequired.value = false;
+		const applied = await applyCombinations(cached, sequence);
+
+		if (!applied || sequence !== loadSequence) {
+			return;
+		}
+
+		lastAppliedKey = requestKey;
+		hasSettledOnce.value = true;
+		loading.value = false;
+		refreshing.value = false;
+		stopRefreshFeedback();
+		operationRefreshing.value = false;
+		return;
+	}
+
+	if (isRefresh) {
+		refreshing.value = true;
+		startRefreshFeedback();
+	} else {
+		loading.value = true;
+	}
+
 	loadError.value = '';
 	loginRequired.value = false;
 
 	try {
-		const payload: SystemTripleRequest = {
-			row1: selectedBosses.value[0] ?? 0,
-			row2: selectedBosses.value[1] ?? 0,
-			row3: selectedBosses.value[2] ?? 0,
-			difficulty: selectedDifficulty.value,
-			lockedIds: [...lockedIds.value],
-			hiddenIds: [...hiddenIds.value],
-			...(requiresAccount.value ? { accountId: props.accountId } : {}),
-		};
 		const data = isUserSource.value
 			? await getUserTripleCombinations(payload)
 			: isPreviousMonth.value
@@ -833,18 +1172,34 @@ async function loadPackages(): Promise<void> {
 			return;
 		}
 
-		combinations.value = data;
-		linkPages.value = {};
+		const shouldPreload = isRefresh;
 
-		if (operationRefreshing.value) {
-			await restoreScrollAnchor();
+		if (shouldPreload) {
+			await preloadResultImages(data);
+
+			if (sequence !== loadSequence) {
+				return;
+			}
 		}
+
+		const applied = await applyCombinations(data, sequence);
+
+		if (!applied || sequence !== loadSequence) {
+			return;
+		}
+
+		writeCachedResult(requestKey, data);
+		lastAppliedKey = requestKey;
+		hasSettledOnce.value = true;
 	} catch (error) {
 		if (sequence !== loadSequence) {
 			return;
 		}
 
-		combinations.value = [];
+		if (!isRefresh) {
+			combinations.value = [];
+		}
+
 		loginRequired.value = requiresRegisteredUser.value
 			&& error instanceof RequestError
 			&& (error.statusCode === 401 || error.statusCode === 403);
@@ -852,9 +1207,12 @@ async function loadPackages(): Promise<void> {
 			error,
 			`获取${periodLabel.value}${tripleSourceLabel.value}三刀组合失败，请稍后重试`,
 		);
+		hasSettledOnce.value = true;
 	} finally {
 		if (sequence === loadSequence) {
 			loading.value = false;
+			refreshing.value = false;
+			stopRefreshFeedback();
 			operationRefreshing.value = false;
 		}
 	}
@@ -865,6 +1223,10 @@ function isTeamLocked(teamId: number): boolean {
 }
 
 function openTeamOperation(hit: DisplayHit): void {
+	if (refreshing.value) {
+		return;
+	}
+
 	operationHit.value = hit;
 	emit('operation-open');
 }
@@ -976,6 +1338,18 @@ function selectDifficulty(difficulty: SystemDifficulty): void {
 	selectedDifficulty.value = difficulty;
 }
 
+function selectMode(mode: TeamMode): void {
+	if (selectedMode.value === mode) {
+		return;
+	}
+
+	if (lockedIds.value.length) {
+		clearLockedTeams();
+		uni.showToast({ title: '模式已切换，锁定已清除', icon: 'none' });
+	}
+	selectedMode.value = mode;
+}
+
 function toggleBoss(rowIndex: number, bossSort: number): void {
 	selectedBosses.value = selectedBosses.value.map((value, index) =>
 		index === rowIndex ? (value === bossSort ? null : bossSort) : value,
@@ -984,7 +1358,11 @@ function toggleBoss(rowIndex: number, bossSort: number): void {
 
 function resetFilters(): void {
 	selectedBosses.value = [null, null, null];
-	selectDifficulty(1);
+	if (isUserSource.value) {
+		selectMode(1);
+	} else {
+		selectDifficulty(1);
+	}
 	scheduleLoad(0);
 }
 
@@ -1239,12 +1617,156 @@ function formatDamage(damage: number): string {
 	box-shadow: 0 0 10px rgba(0, 112, 255, 0.22);
 }
 
+.three-set-filter-panel--stretch .three-set-filter-options {
+	align-items: stretch;
+	overflow: visible;
+}
+
+.three-set-filter-panel--stretch .three-set-filter-bottom {
+	width: 100%;
+	min-width: 0;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: center;
+	gap: 10px;
+}
+
+.three-set-filter-panel--stretch .three-set-filter-group {
+	width: 100%;
+	align-items: stretch;
+	gap: 7px;
+}
+
+.three-set-filter-panel--stretch .three-set-filter-label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	letter-spacing: 0.04em;
+}
+
+.three-set-filter-panel--stretch .three-set-filter-label::after {
+	height: 1px;
+	flex: 1;
+	background: linear-gradient(90deg, var(--border-default), transparent);
+	content: '';
+}
+
+.three-set-filter-panel--stretch .three-set-choice-list {
+	width: 100%;
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 7px;
+}
+
+.three-set-filter-panel--stretch .three-set-choice {
+	width: auto;
+	min-width: 0;
+	height: 42px;
+	flex: none;
+	padding: 0 6px;
+	border-color: var(--border-default);
+	background: linear-gradient(180deg, var(--bg-subtle), var(--bg-panel-soft));
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.three-set-filter-panel--stretch .three-set-choice:hover {
+	border-color: var(--border-strong);
+	background: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.three-set-filter-panel--stretch .three-set-choice.active {
+	border-color: var(--accent-strong);
+	background: linear-gradient(180deg, #1292ff, #087df5);
+	color: #fff;
+	font-weight: 700;
+	box-shadow: 0 0 0 1px rgba(22, 140, 255, 0.22), 0 0 16px rgba(0, 112, 255, 0.28);
+}
+
+.three-set-results {
+	position: relative;
+}
+
+.three-set-refresh-bar {
+	position: absolute;
+	top: 4px;
+	left: 0;
+	right: 0;
+	z-index: 3;
+	height: 2px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: rgba(54, 161, 255, 0.14);
+	pointer-events: none;
+}
+
+.three-set-refresh-bar::after {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 38%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, transparent, rgba(83, 190, 255, 0.95), transparent);
+	content: '';
+	animation: three-set-refresh-slide 1s ease-in-out infinite;
+}
+
+@keyframes three-set-refresh-slide {
+	from {
+		transform: translateX(-100%);
+	}
+
+	to {
+		transform: translateX(360%);
+	}
+}
+
+.three-set-inline-error {
+	margin-top: 10px;
+	padding: 7px 10px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border: 1px solid var(--danger-soft);
+	border-radius: 7px;
+	background: rgba(59, 23, 34, 0.72);
+	color: var(--text-secondary);
+	font-size: 11px;
+}
+
+.three-set-inline-error-text {
+	min-width: 0;
+	flex: 1;
+}
+
+.three-set-inline-error-retry {
+	flex: 0 0 auto;
+	padding: 3px 9px;
+	border: 1px solid var(--border-default);
+	border-radius: 5px;
+	color: var(--accent-text);
+	cursor: pointer;
+}
+
 .three-set-grid {
 	margin-top: 12px;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	align-items: stretch;
 	gap: 10px;
+	transition: opacity 0.18s ease;
+}
+
+.three-set-results.is-refreshing .three-set-grid {
+	opacity: 0.72;
+}
+
+.three-set-results.is-refreshing .three-set-role-clickable,
+.three-set-results.is-refreshing .three-set-import-button {
+	pointer-events: none;
 }
 
 .three-set-package {
@@ -1571,6 +2093,7 @@ function formatDamage(damage: number): string {
 }
 
 .three-set-empty {
+	position: relative;
 	flex: 1 1 0;
 	min-height: 0;
 	max-height: 75vh;
@@ -1582,6 +2105,19 @@ function formatDamage(damage: number): string {
 	border: 1px dashed var(--border-subtle);
 	border-radius: 10px;
 	background: var(--bg-panel-soft);
+}
+
+.three-set-refresh-inline {
+	position: absolute;
+	top: 10px;
+	right: 12px;
+	padding: 3px 8px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	background: var(--bg-panel-soft);
+	color: var(--text-muted);
+	font-size: 10px;
+	line-height: 1.4;
 }
 
 .three-set-empty-icon {
@@ -1694,6 +2230,13 @@ function formatDamage(damage: number): string {
 		width: 100%;
 		display: grid;
 		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 4px;
+	}
+
+	.three-set-mode-filter .three-set-choice-list {
+		width: 100%;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 4px;
 	}
 
@@ -2611,6 +3154,14 @@ function formatDamage(damage: number): string {
 @media (prefers-reduced-motion: reduce) {
 	.three-set-role-main .three-set-role.three-set-role-locked {
 		animation: none;
+	}
+
+	.three-set-refresh-bar::after {
+		animation: none;
+	}
+
+	.three-set-grid {
+		transition: none;
 	}
 }
 

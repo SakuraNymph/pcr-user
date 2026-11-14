@@ -26,6 +26,7 @@ const props = withDefaults(defineProps<{
 	importCompleted?: boolean;
 	location?: 'team' | 'group';
 	packageKind?: 'three' | 'six';
+	source?: 'system' | 'user';
 }>(), {
 	active: false,
 	operationOpen: false,
@@ -33,6 +34,7 @@ const props = withDefaults(defineProps<{
 	importCompleted: false,
 	location: 'team',
 	packageKind: 'three',
+	source: 'system',
 });
 
 const emit = defineEmits<{
@@ -83,14 +85,25 @@ const bossGuideStep = computed<GuideStep>(() => ({
 		? '低阶段与高阶段各三排 BOSS，可分别指定每刀目标；再次点击已选 BOSS 可取消筛选。'
 		: '三排 BOSS 可分别指定每刀的目标；再次点击已选 BOSS 可取消筛选。',
 }));
-const filtersGuideStep = computed<GuideStep>(() => ({
-	key: 'filters',
-	target: '.team-guide-target-filters',
-	title: props.packageKind === 'six' ? '设置难度与阶段' : '设置难度',
-	description: props.packageKind === 'six'
-		? '选择难度，并按 B/C 阶段缩小套餐范围；难度只要求 D 面三刀各自包含，B/C 阶段不受限制。'
-		: '选择难度，缩小三刀套餐范围；三刀需各自包含所选难度。',
-}));
+const filtersGuideStep = computed<GuideStep>(() => {
+	if (props.packageKind === 'three' && props.source === 'user') {
+		return {
+			key: 'filters',
+			target: '.team-guide-target-filters',
+			title: '设置模式',
+			description: '选择自动或手动，缩小三刀套餐范围；三刀会按所选模式生成。',
+		};
+	}
+
+	return {
+		key: 'filters',
+		target: '.team-guide-target-filters',
+		title: props.packageKind === 'six' ? '设置难度与阶段' : '设置难度',
+		description: props.packageKind === 'six'
+			? '选择难度，并按 B/C 阶段缩小套餐范围；难度只要求 D 面三刀各自包含，B/C 阶段不受限制。'
+			: '选择难度，缩小三刀套餐范围；三刀需各自包含所选难度。',
+	};
+});
 const importGuideStep = computed<GuideStep>(() => ({
 	key: 'import',
 	target: '.team-guide-target-import',

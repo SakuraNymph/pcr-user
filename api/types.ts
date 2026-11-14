@@ -431,7 +431,8 @@ export interface SystemTripleRequest {
 	row1: number;
 	row2: number;
 	row3: number;
-	difficulty: SystemDifficulty;
+	difficulty?: SystemDifficulty | 0;
+	mode?: 1 | 2;
 	lockedIds: number[];
 	hiddenIds: number[];
 	accountId?: number;

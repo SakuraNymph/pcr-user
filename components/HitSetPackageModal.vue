@@ -45,6 +45,7 @@
 			v-if="guideEnabled"
 			:location="guideLocation"
 			:package-kind="kind"
+			:source="source"
 			:active="guideActive"
 			:operation-open="guideOperationOpen"
 			:include-import="importGuideEnabled"

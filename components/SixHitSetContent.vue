@@ -30,7 +30,7 @@
 			</view>
 		</view>
 
-		<!-- 三组筛选项横向排列 -->
+		<!-- 难度与阶段分两行展示 -->
 		<view class="six-set-filter-options team-guide-target-filters">
 			<view class="three-set-filter-bottom">
 				<view class="three-set-filter-group three-set-difficulty-filter">
@@ -71,13 +71,29 @@
 				<view class="three-set-empty-title">正在匹配{{ periodLabel }}系统六刀组合</view>
 				<view class="three-set-empty-hint">请稍候，正在按当前筛选条件计算</view>
 			</view>
-			<view v-else-if="loadError" class="three-set-empty">
+			<view v-else-if="loadError && !displayPackages.length" class="three-set-empty">
 				<view class="three-set-empty-icon">!</view>
 				<view class="three-set-empty-title">获取组合失败</view>
 				<view class="three-set-empty-hint">{{ loadError }}</view>
 				<view class="three-set-empty-reset" @click="retryLoad">重新加载</view>
 			</view>
-			<view v-else-if="displayPackages.length" class="three-set-grid">
+			<view
+				v-else-if="displayPackages.length"
+				class="six-set-results"
+				:class="{ 'is-refreshing': showRefreshIndicator }"
+				:aria-busy="refreshing"
+			>
+				<view
+					v-if="showRefreshIndicator"
+					class="six-set-refresh-bar"
+					role="status"
+					aria-label="正在刷新筛选结果"
+				></view>
+				<view v-if="loadError" class="six-set-inline-error">
+					<text class="six-set-inline-error-text">{{ loadError }}</text>
+					<view class="six-set-inline-error-retry" @click="retryLoad">重试</view>
+				</view>
+				<view class="three-set-grid">
 				<view
 					v-for="(pkg, packageIndex) in displayPackages"
 					:key="pkg.id"
@@ -264,7 +280,11 @@
 					</view>
 				</view>
 			</view>
+			</view>
 			<view v-else class="three-set-empty">
+				<view v-if="showRefreshIndicator" class="six-set-refresh-inline" role="status">
+					正在刷新…
+				</view>
 				<view class="three-set-empty-icon">⌕</view>
 				<view class="three-set-empty-title">没有找到符合条件的套餐</view>
 				<view class="three-set-empty-hint">调整 BOSS 或筛选条件后再试试</view>
@@ -289,6 +309,7 @@ import type {
 	GameRoleOption,
 	SystemDifficulty,
 	SystemSixHitPackage,
+	SystemSixHitRequest,
 	SystemSixHitStage,
 	SystemTripleLink,
 	SystemTripleTeam,
@@ -362,6 +383,15 @@ interface DisplayPackage {
 	pairs: DisplayHitPair[];
 }
 
+interface CachedSixHitResult {
+	data: SystemSixHitPackage[];
+	storedAt: number;
+}
+
+const RESULT_CACHE_TTL = 30_000;
+const RESULT_CACHE_LIMIT = 12;
+const preloadedResultImages = new Set<string>();
+
 const fallbackBosses: Boss[] = [1, 2, 3, 4, 5].map((sort) => ({
 	id: 'demo-boss-' + sort,
 	sort,
@@ -378,7 +408,11 @@ const selectedStage = ref<SystemSixHitStage>(0);
 const failedBossImages = ref<number[]>([]);
 const failedRoleImages = ref<string[]>([]);
 const packages = ref<SystemSixHitPackage[]>([]);
-const loading = ref(false);
+const resultCache = new Map<string, CachedSixHitResult>();
+const loading = ref(true);
+const refreshing = ref(false);
+const showRefreshIndicator = ref(false);
+const hasSettledOnce = ref(false);
 const loadError = ref('');
 const linksPerPage = ref(4);
 const linkPages = ref<Record<string, number>>({});
@@ -390,8 +424,9 @@ const operationRefreshing = ref(false);
 const importingPackageIndex = ref<number | null>(null);
 
 interface ScrollAnchor {
-	packageKey: string;
-	viewportTop: number;
+	mode: 'filter' | 'operation';
+	packageKey?: string;
+	viewportTop?: number;
 	scrollTop: number;
 	container: HTMLElement | Window | null;
 }
@@ -466,7 +501,10 @@ const operationLocked = computed(() => (
 ));
 
 let requestTimer: ReturnType<typeof setTimeout> | null = null;
+let refreshIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
 let loadSequence = 0;
+let lastAppliedKey = '';
+let currentContextKey = buildContextKey();
 
 watch(
 	[
@@ -478,6 +516,8 @@ watch(
 		hiddenIds,
 		() => props.period,
 		() => props.accountId,
+		() => authState.isAuthenticated,
+		() => authState.user?.id,
 	],
 	() => scheduleLoad(),
 	{ deep: true },
@@ -496,6 +536,10 @@ onBeforeUnmount(() => {
 	if (requestTimer) {
 		clearTimeout(requestTimer);
 		requestTimer = null;
+	}
+	if (refreshIndicatorTimer) {
+		clearTimeout(refreshIndicatorTimer);
+		refreshIndicatorTimer = null;
 	}
 
 	loadSequence += 1;
@@ -550,8 +594,141 @@ function buildDisplayHit(team: SystemTripleTeam, pageKey: string): DisplayHit {
 	};
 }
 
+function buildContextKey(): string {
+	return JSON.stringify([
+		props.period,
+		props.accountId,
+		authState.isAuthenticated ? String(authState.user?.id ?? 'user') : 'guest',
+	]);
+}
+
+function buildRequestKey(payload: SystemSixHitRequest): string {
+	return JSON.stringify([
+		buildContextKey(),
+		payload.lowBosses,
+		payload.highBosses,
+		payload.difficulty,
+		payload.stage,
+		payload.lockedIds,
+		payload.hiddenIds,
+	]);
+}
+
+function readCachedResult(key: string): SystemSixHitPackage[] | null {
+	const cached = resultCache.get(key);
+
+	if (!cached) {
+		return null;
+	}
+
+	if (Date.now() - cached.storedAt > RESULT_CACHE_TTL) {
+		resultCache.delete(key);
+		return null;
+	}
+
+	return cached.data;
+}
+
+function writeCachedResult(key: string, data: SystemSixHitPackage[]): void {
+	resultCache.delete(key);
+	resultCache.set(key, { data, storedAt: Date.now() });
+
+	while (resultCache.size > RESULT_CACHE_LIMIT) {
+		const oldestKey = resultCache.keys().next().value;
+
+		if (oldestKey === undefined) {
+			break;
+		}
+
+		resultCache.delete(oldestKey);
+	}
+}
+
+async function preloadResultImages(data: SystemSixHitPackage[]): Promise<void> {
+	// #ifdef H5
+	if (typeof Image === 'undefined') {
+		return;
+	}
+
+	const urls = new Set<string>();
+
+	for (const pkg of data) {
+		for (const pair of pkg.pairs || []) {
+			for (const team of [pair.low, pair.high]) {
+				for (const role of team.roles || []) {
+					const url = role.image_url || roleById.value.get(Number(role.role_id))?.image_url;
+
+					if (url && !preloadedResultImages.has(url)) {
+						urls.add(url);
+					}
+				}
+			}
+		}
+	}
+
+	const pending = Array.from(urls).slice(0, 60);
+
+	if (!pending.length) {
+		return;
+	}
+
+	await Promise.all(pending.map((url) => new Promise<void>((resolve) => {
+		let settled = false;
+		const finish = () => {
+			if (settled) {
+				return;
+			}
+
+			settled = true;
+			preloadedResultImages.add(url);
+			resolve();
+		};
+
+		try {
+			const image = new Image();
+			image.onload = finish;
+			image.onerror = finish;
+			image.src = url;
+		} catch {
+			finish();
+			return;
+		}
+
+		setTimeout(finish, 350);
+	})));
+	// #endif
+}
+
+async function applyPackages(
+	data: SystemSixHitPackage[],
+	sequence: number,
+): Promise<boolean> {
+	if (sequence !== loadSequence) {
+		return false;
+	}
+
+	packages.value = data;
+	linkPages.value = {};
+	await nextTick();
+
+	if (sequence !== loadSequence) {
+		return false;
+	}
+
+	await restoreScrollAnchor().catch(() => undefined);
+
+	if (sequence !== loadSequence) {
+		return false;
+	}
+
+	stopRefreshFeedback();
+	refreshing.value = false;
+
+	return true;
+}
+
 async function importPackage(pkg: DisplayPackage, packageIndex: number): Promise<void> {
-	if (importingPackageIndex.value !== null) {
+	if (importingPackageIndex.value !== null || refreshing.value) {
 		return;
 	}
 
@@ -607,8 +784,76 @@ async function loadVisualAssets(): Promise<void> {
 	}
 }
 
+function startRefreshFeedback(): void {
+	if (refreshIndicatorTimer || showRefreshIndicator.value) {
+		return;
+	}
+
+	refreshIndicatorTimer = setTimeout(() => {
+		refreshIndicatorTimer = null;
+
+		if (refreshing.value) {
+			showRefreshIndicator.value = true;
+		}
+	}, 220);
+}
+
+function stopRefreshFeedback(): void {
+	if (refreshIndicatorTimer) {
+		clearTimeout(refreshIndicatorTimer);
+		refreshIndicatorTimer = null;
+	}
+
+	showRefreshIndicator.value = false;
+}
+
+function captureCurrentScrollAnchor(): void {
+	scrollAnchor = null;
+
+	// #ifdef H5
+	const packageKey = displayPackages.value[0]?.stableKey;
+
+	if (!packageKey) {
+		return;
+	}
+
+	const element = document.getElementById(getPackageElementId(packageKey));
+
+	if (!element) {
+		return;
+	}
+
+	const container = findScrollContainer(element);
+	scrollAnchor = {
+		mode: 'filter',
+		scrollTop: readScrollTop(container),
+		container,
+	};
+	// #endif
+}
+
 function scheduleLoad(delay = 180): void {
 	loadSequence += 1;
+
+	const nextContextKey = buildContextKey();
+
+	if (nextContextKey !== currentContextKey) {
+		currentContextKey = nextContextKey;
+		packages.value = [];
+		linkPages.value = {};
+		hasSettledOnce.value = false;
+		lastAppliedKey = '';
+		loadError.value = '';
+		loading.value = true;
+		refreshing.value = false;
+		operationRefreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
+	}
+
+	if (!operationRefreshing.value && packages.value.length) {
+		refreshing.value = true;
+	}
 
 	if (requestTimer) {
 		clearTimeout(requestTimer);
@@ -626,53 +871,113 @@ async function loadPackages(): Promise<void> {
 	if (!isPreviousMonth.value && props.accountId <= 0) {
 		packages.value = [];
 		loading.value = false;
+		refreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
 		operationRefreshing.value = false;
 		loadError.value = '请选择游戏账号后重试';
+		hasSettledOnce.value = true;
 		return;
 	}
 
-	loading.value = true;
+	const payload: SystemSixHitRequest = {
+		lowBosses: normalizeBossSelection(selectedLowBosses.value),
+		highBosses: normalizeBossSelection(selectedHighBosses.value),
+		difficulty: selectedDifficulty.value,
+		stage: selectedStage.value,
+		lockedIds: [...lockedIds.value],
+		hiddenIds: [...hiddenIds.value],
+		...(isPreviousMonth.value ? {} : { accountId: props.accountId }),
+	};
+	const requestKey = buildRequestKey(payload);
+	const isRefresh = hasSettledOnce.value || packages.value.length > 0;
+
+	if (lastAppliedKey === requestKey && !loadError.value) {
+		loading.value = false;
+		refreshing.value = false;
+		scrollAnchor = null;
+		stopRefreshFeedback();
+		operationRefreshing.value = false;
+		return;
+	}
+
+	if (isRefresh && !operationRefreshing.value && packages.value.length) {
+		captureCurrentScrollAnchor();
+	}
+
+	const cached = readCachedResult(requestKey);
+
+	if (cached) {
+		loadError.value = '';
+		const applied = await applyPackages(cached, sequence);
+
+		if (!applied || sequence !== loadSequence) {
+			return;
+		}
+
+		lastAppliedKey = requestKey;
+		hasSettledOnce.value = true;
+		loading.value = false;
+		refreshing.value = false;
+		stopRefreshFeedback();
+		operationRefreshing.value = false;
+		return;
+	}
+
+	if (isRefresh) {
+		refreshing.value = true;
+		startRefreshFeedback();
+	} else {
+		loading.value = true;
+	}
+
 	loadError.value = '';
 
 	try {
-		const payload = {
-			lowBosses: normalizeBossSelection(selectedLowBosses.value),
-			highBosses: normalizeBossSelection(selectedHighBosses.value),
-			difficulty: selectedDifficulty.value,
-			stage: selectedStage.value,
-			lockedIds: [...lockedIds.value],
-			hiddenIds: [...hiddenIds.value],
-		};
 		const data = isPreviousMonth.value
 			? await getPreviousMonthSystemSixHitPackages(payload)
-			: await getCurrentSystemSixHitPackages({
-				...payload,
-				accountId: props.accountId,
-			});
+			: await getCurrentSystemSixHitPackages(payload);
 
 		if (sequence !== loadSequence) {
 			return;
 		}
 
-		packages.value = data;
-		linkPages.value = {};
+		if (isRefresh) {
+			await preloadResultImages(data);
 
-		if (operationRefreshing.value) {
-			await restoreScrollAnchor();
+			if (sequence !== loadSequence) {
+				return;
+			}
 		}
+
+		const applied = await applyPackages(data, sequence);
+
+		if (!applied || sequence !== loadSequence) {
+			return;
+		}
+
+		writeCachedResult(requestKey, data);
+		lastAppliedKey = requestKey;
+		hasSettledOnce.value = true;
 	} catch (error) {
 		if (sequence !== loadSequence) {
 			return;
 		}
 
-		packages.value = [];
+		if (!isRefresh) {
+			packages.value = [];
+		}
+
 		loadError.value = errorMessage(
 			error,
 			`获取${periodLabel.value}系统六刀组合失败，请稍后重试`,
 		);
+		hasSettledOnce.value = true;
 	} finally {
 		if (sequence === loadSequence) {
 			loading.value = false;
+			refreshing.value = false;
+			stopRefreshFeedback();
 			operationRefreshing.value = false;
 		}
 	}
@@ -689,6 +994,10 @@ function isTeamLocked(teamId: number): boolean {
 }
 
 function openTeamOperation(hit: DisplayHit): void {
+	if (refreshing.value) {
+		return;
+	}
+
 	operationHit.value = hit;
 	emit('operation-open');
 }
@@ -981,6 +1290,7 @@ function writeScrollTop(container: HTMLElement | Window, value: number): void {
 
 function beginOperationRefresh(hit: DisplayHit): void {
 	operationRefreshing.value = true;
+	scrollAnchor = null;
 	const packageKey = findPackageKey(hit);
 
 	if (!packageKey) {
@@ -996,6 +1306,7 @@ function beginOperationRefresh(hit: DisplayHit): void {
 
 	const container = findScrollContainer(element);
 	scrollAnchor = {
+		mode: 'operation',
 		packageKey,
 		viewportTop: element.getBoundingClientRect().top,
 		scrollTop: readScrollTop(container),
@@ -1024,13 +1335,15 @@ async function restoreScrollAnchor(): Promise<void> {
 		setTimeout(resolve, 0);
 	});
 
-	const element = document.getElementById(getPackageElementId(anchor.packageKey));
+	if (anchor.mode === 'operation' && anchor.packageKey && anchor.viewportTop !== undefined) {
+		const element = document.getElementById(getPackageElementId(anchor.packageKey));
 
-	if (element) {
-		const container = findScrollContainer(element);
-		const delta = element.getBoundingClientRect().top - anchor.viewportTop;
-		writeScrollTop(container, readScrollTop(container) + delta);
-		return;
+		if (element) {
+			const container = findScrollContainer(element);
+			const delta = element.getBoundingClientRect().top - anchor.viewportTop;
+			writeScrollTop(container, readScrollTop(container) + delta);
+			return;
+		}
 	}
 
 	if (anchor.container) {
@@ -1279,12 +1592,87 @@ function formatDamage(damage: number): string {
 	box-shadow: 0 0 10px rgba(0, 112, 255, 0.22);
 }
 
+.six-set-results {
+	position: relative;
+}
+
+.six-set-refresh-bar {
+	position: absolute;
+	top: 4px;
+	left: 0;
+	right: 0;
+	z-index: 3;
+	height: 2px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: rgba(54, 161, 255, 0.14);
+	pointer-events: none;
+}
+
+.six-set-refresh-bar::after {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 38%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, transparent, rgba(83, 190, 255, 0.95), transparent);
+	content: '';
+	animation: six-set-refresh-slide 1s ease-in-out infinite;
+}
+
+@keyframes six-set-refresh-slide {
+	from {
+		transform: translateX(-100%);
+	}
+
+	to {
+		transform: translateX(360%);
+	}
+}
+
+.six-set-inline-error {
+	margin-top: 10px;
+	padding: 7px 10px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border: 1px solid var(--danger-soft);
+	border-radius: 7px;
+	background: rgba(59, 23, 34, 0.72);
+	color: var(--text-secondary);
+	font-size: 11px;
+}
+
+.six-set-inline-error-text {
+	min-width: 0;
+	flex: 1;
+}
+
+.six-set-inline-error-retry {
+	flex: 0 0 auto;
+	padding: 3px 9px;
+	border: 1px solid var(--border-default);
+	border-radius: 5px;
+	color: var(--accent-text);
+	cursor: pointer;
+}
+
 .three-set-grid {
 	margin-top: 12px;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	align-items: stretch;
 	gap: 10px;
+	transition: opacity 0.18s ease;
+}
+
+.six-set-results.is-refreshing .three-set-grid {
+	opacity: 0.72;
+}
+
+.six-set-results.is-refreshing .three-set-role-clickable,
+.six-set-results.is-refreshing .three-set-import-button {
+	pointer-events: none;
 }
 
 .three-set-package {
@@ -1611,6 +1999,7 @@ function formatDamage(damage: number): string {
 }
 
 .three-set-empty {
+	position: relative;
 	flex: 1 1 0;
 	min-height: 0;
 	max-height: 75vh;
@@ -1622,6 +2011,19 @@ function formatDamage(damage: number): string {
 	border: 1px dashed var(--border-subtle);
 	border-radius: 10px;
 	background: var(--bg-panel-soft);
+}
+
+.six-set-refresh-inline {
+	position: absolute;
+	top: 10px;
+	right: 12px;
+	padding: 3px 8px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	background: var(--bg-panel-soft);
+	color: var(--text-muted);
+	font-size: 10px;
+	line-height: 1.4;
 }
 
 .three-set-empty-icon {
@@ -2705,9 +3107,9 @@ function formatDamage(damage: number): string {
 	width: 100%;
 	min-width: 0;
 	display: grid;
-	grid-template-columns: repeat(6, minmax(0, 1fr));
+	grid-template-columns: minmax(0, 1fr);
 	align-items: start;
-	gap: 14px 6px;
+	gap: 10px;
 }
 
 .six-set-filter-options .three-set-filter-group {
@@ -2715,12 +3117,9 @@ function formatDamage(damage: number): string {
 	min-width: 0;
 }
 
-.six-set-filter-options .three-set-difficulty-filter {
-	grid-column: 1 / 5;
-}
-
+.six-set-filter-options .three-set-difficulty-filter,
 .six-set-filter-options .three-set-stage-filter {
-	grid-column: 5 / 7;
+	grid-column: 1 / -1;
 }
 
 .six-set-filter-options .three-set-choice {
@@ -2743,18 +3142,7 @@ function formatDamage(damage: number): string {
 }
 
 .six-set-filter-options .three-set-stage-filter .three-set-choice-list {
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media screen and (max-width: 1200px) {
-	.six-set-filter-options .three-set-filter-bottom {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
-	.six-set-filter-options .three-set-difficulty-filter,
-	.six-set-filter-options .three-set-stage-filter {
-		grid-column: 1 / -1;
-	}
+	grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 @media screen and (max-width: 700px) {
@@ -2775,9 +3163,8 @@ function formatDamage(damage: number): string {
 		gap: 12px 4px;
 	}
 
-	.six-set-filter-options .three-set-difficulty-filter,
-	.six-set-filter-options .three-set-stage-filter {
-		grid-column: 1 / -1;
+	.six-set-filter-options .three-set-stage-filter .three-set-choice-list {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 
 	.six-set-filter-options .three-set-choice {
@@ -2930,6 +3317,14 @@ function formatDamage(damage: number): string {
 @media (prefers-reduced-motion: reduce) {
 	.three-set-role-main .three-set-role.three-set-role-locked {
 		animation: none;
+	}
+
+	.six-set-refresh-bar::after {
+		animation: none;
+	}
+
+	.three-set-grid {
+		transition: none;
 	}
 }
 
