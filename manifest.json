@@ -50,7 +50,7 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wx6ed54817cfa661b3",
         "setting" : {
             "urlCheck" : false
         },
@@ -66,20 +66,23 @@
         "usingComponents" : true
     },
     "vueVersion" : "3",
-    /* ====== 重点：H5 开发服务器代理配置 ====== */
+    /* H5 配置 */
     "h5" : {
+        /* 路由模式：history 去掉地址栏中的 # */
+        "router" : {
+            "mode" : "history"
+        },
+        /* H5 开发服务器代理配置 */
         "devServer" : {
-            "port" : 8081, // 可自定义端口
+            "port" : 8081,
             "disableHostCheck" : true,
             "proxy" : {
                 "^/api/(admin|user|game)/" : {
-                    // 只代理真实接口，避免拦截源码 api/ 目录
                     "target" : "http://lara.test",
                     "changeOrigin" : true,
                     "secure" : false
                 },
                 "^/(boss|images|storage)/" : {
-                    // 后端 public 目录中的图片等静态资源
                     "target" : "http://lara.test",
                     "changeOrigin" : true,
                     "secure" : false
