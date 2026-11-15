@@ -15,34 +15,32 @@
 			</view>
 		</view>
 
-		<Transition name="more-sheet">
-			<view v-if="moreOpen" class="more-mask" @click="closeMore">
-				<view class="more-panel" @click.stop>
-					<view class="more-handle"></view>
-					<view class="more-heading">更多功能</view>
+		<view v-show="moreOpen" class="more-mask" @click="closeMore()">
+			<view class="more-panel" @click.stop>
+				<view class="more-handle"></view>
+				<view class="more-heading">更多功能</view>
+				<view
+					v-for="group in moreGroups"
+					:key="group.key"
+					class="more-group"
+				>
+					<view class="more-group-title">{{ group.label }}</view>
 					<view
-						v-for="group in moreGroups"
-						:key="group.key"
-						class="more-group"
+						v-for="item in group.items"
+						:key="item.key"
+						class="more-item"
+						role="menuitem"
+						tabindex="0"
+						@click="selectMore(item)"
 					>
-						<view class="more-group-title">{{ group.label }}</view>
-						<view
-							v-for="item in group.items"
-							:key="item.key"
-							class="more-item"
-							role="menuitem"
-							tabindex="0"
-							@click="selectMore(item)"
-						>
-							<text class="more-icon">{{ item.icon }}</text>
-							<text class="more-label">{{ item.label }}</text>
-							<text v-if="item.path || item.action" class="more-arrow">›</text>
-						</view>
+						<text class="more-icon">{{ item.icon }}</text>
+						<text class="more-label">{{ item.label }}</text>
+						<text v-if="item.path || item.action" class="more-arrow">›</text>
 					</view>
-					<view class="more-cancel" @click="closeMore">取消</view>
 				</view>
+				<view class="more-cancel" @click="closeMore()">取消</view>
 			</view>
-		</Transition>
+		</view>
 	</view>
 </template>
 
@@ -257,26 +255,6 @@ function closeMore(): void {
 	color: var(--text-secondary);
 	font-size: 14px;
 	cursor: pointer;
-}
-
-.more-sheet-enter-active,
-.more-sheet-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.more-sheet-enter-active .more-panel,
-.more-sheet-leave-active .more-panel {
-	transition: transform 0.24s ease;
-}
-
-.more-sheet-enter-from,
-.more-sheet-leave-to {
-	opacity: 0;
-}
-
-.more-sheet-enter-from .more-panel,
-.more-sheet-leave-to .more-panel {
-	transform: translateY(100%);
 }
 
 @media screen and (max-width: 700px) {

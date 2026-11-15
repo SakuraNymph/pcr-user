@@ -63,13 +63,12 @@
 			</view>
 		</view>
 
-		<Transition :name="editorTransitionName" appear @after-enter="handleEditorAfterEnter">
-			<view v-if="editorVisible" class="modal-mask" @click="closeEditor">
-				<view
-					class="editor-modal"
-					:class="{ 'is-guide-open': guideVisible }"
-					@click.stop
-				>
+		<view v-if="editorVisible" class="modal-mask" @click="closeEditor">
+			<view
+				class="editor-modal"
+				:class="{ 'is-guide-open': guideVisible }"
+				@click.stop
+			>
 				<view class="modal-header">
 					<view class="modal-title">{{ editingId === null ? '添加账号' : '修改账号' }}</view>
 					<view class="close-button" @click="closeEditor">×</view>
@@ -149,8 +148,7 @@
 					</view>
 				</view>
 			</view>
-			</view>
-		</Transition>
+		</view>
 
 		<view v-if="guideVisible" class="account-guide-overlay">
 			<view class="account-guide-spotlight" :style="guideSpotlightStyle"></view>
@@ -167,36 +165,30 @@
 			</view>
 		</view>
 
-		<Transition name="feature-dialog" appear>
-			<MasterCoinShopModal
-				v-if="coinShopVisible"
-				:pool-id="coinShopPoolId"
-				:pool-name="coinShopPoolName"
-				@close="closeCoinShop"
-			/>
-		</Transition>
+		<MasterCoinShopModal
+			v-if="coinShopVisible"
+			:pool-id="coinShopPoolId"
+			:pool-name="coinShopPoolName"
+			@close="closeCoinShop"
+		/>
 
-		<Transition name="feature-dialog" appear>
-			<CardStatisticsModal
-				v-if="statisticsVisible"
-				:pool-id="statisticsPoolId"
-				:pool-name="statisticsPoolName"
-				:user-id="authState.user?.id ?? 0"
-				@close="closeStatistics"
-			/>
-		</Transition>
+		<CardStatisticsModal
+			v-if="statisticsVisible"
+			:pool-id="statisticsPoolId"
+			:pool-name="statisticsPoolName"
+			:user-id="authState.user?.id ?? 0"
+			@close="closeStatistics"
+		/>
 
-		<Transition name="feature-dialog" appear>
-			<HitSetPackageModal
-				v-if="packageModalKind"
-				:kind="packageModalKind"
-				:pool-name="packagePoolName"
-				:pool-id="packagePoolId"
-				guide-enabled
-				import-guide-enabled
-				@close="closePackageModal"
-			/>
-		</Transition>
+		<HitSetPackageModal
+			v-if="packageModalKind"
+			:kind="packageModalKind"
+			:pool-name="packagePoolName"
+			:pool-id="packagePoolId"
+			guide-enabled
+			import-guide-enabled
+			@close="closePackageModal"
+		/>
 	</MainLayout>
 </template>
 
@@ -355,11 +347,6 @@ const visibleRoles = computed(() => {
 const currentGuideStep = computed(() => (
 	accountGuideSteps[guideStep.value] || accountGuideSteps[0]
 ));
-const editorTransitionName = computed(() => (
-	guideVisible.value && guideStep.value > 0
-		? 'account-editor-guide'
-		: 'account-editor'
-));
 
 onShow(() => {
 	guideDeferredUntilShow.value = false;
@@ -447,12 +434,6 @@ function scheduleGuidePositionAfterEditorOpen(): void {
 		guideRepositionTimer = null;
 		positionAccountGuideTarget(false);
 	}, 520);
-}
-
-function handleEditorAfterEnter(): void {
-	if (guideVisible.value) {
-		scheduleGuidePosition();
-	}
 }
 
 async function loadAccountGuideConfig(): Promise<void> {
@@ -1309,6 +1290,23 @@ function closeStatistics(): void {
 	align-items: center;
 	justify-content: center;
 	background: var(--mask);
+	animation: account-dialog-fade 0.22s ease-out;
+}
+
+@keyframes account-dialog-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.modal-mask {
+		animation-duration: 0.01ms;
+	}
 }
 
 .editor-modal {
@@ -1321,64 +1319,6 @@ function closeStatistics(): void {
 	background: var(--bg-elevated);
 	box-shadow: 0 18px 60px var(--shadow), 0 0 24px rgba(0, 105, 190, 0.16);
 	overflow: hidden;
-}
-
-.account-editor-enter-active {
-	transition: opacity 0.3s ease;
-}
-
-.account-editor-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.account-editor-enter-active .editor-modal {
-	transition:
-		opacity 0.34s ease,
-		transform 0.48s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.account-editor-leave-active .editor-modal {
-	transition:
-		opacity 0.2s ease,
-		transform 0.24s ease;
-}
-
-.account-editor-enter-from,
-.account-editor-leave-to {
-	opacity: 0;
-}
-
-.account-editor-enter-from .editor-modal {
-	opacity: 0;
-	transform: translate3d(0, 20px, 0) scale(0.975);
-}
-
-.account-editor-leave-to .editor-modal {
-	opacity: 0;
-	transform: translate3d(0, 10px, 0) scale(0.99);
-}
-
-.account-editor-guide-enter-active,
-.account-editor-guide-leave-active,
-.account-editor-guide-enter-active .editor-modal,
-.account-editor-guide-leave-active .editor-modal {
-	transition: opacity 0.16s ease;
-}
-
-.account-editor-guide-enter-from,
-.account-editor-guide-leave-to,
-.account-editor-guide-enter-from .editor-modal,
-.account-editor-guide-leave-to .editor-modal {
-	opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.account-editor-enter-active,
-	.account-editor-leave-active,
-	.account-editor-enter-active .editor-modal,
-	.account-editor-leave-active .editor-modal {
-		transition-duration: 0.01ms;
-	}
 }
 
 .modal-header {
@@ -1756,62 +1696,6 @@ function closeStatistics(): void {
 	font-weight: bold;
 }
 
-.feature-dialog-enter-active {
-	transition: opacity 0.32s ease;
-}
-
-.feature-dialog-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.feature-dialog-enter-from,
-.feature-dialog-leave-to {
-	opacity: 0;
-}
-
-.feature-dialog-enter-active :deep(.coin-modal),
-.feature-dialog-enter-active :deep(.stats-modal),
-.feature-dialog-enter-active :deep(.package-modal) {
-	transition:
-		opacity 0.36s ease,
-		transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.feature-dialog-leave-active :deep(.coin-modal),
-.feature-dialog-leave-active :deep(.stats-modal),
-.feature-dialog-leave-active :deep(.package-modal) {
-	transition:
-		opacity 0.2s ease,
-		transform 0.24s ease;
-}
-
-.feature-dialog-enter-from :deep(.coin-modal),
-.feature-dialog-enter-from :deep(.stats-modal),
-.feature-dialog-enter-from :deep(.package-modal) {
-	opacity: 0;
-	transform: translate3d(0, 22px, 0) scale(0.965);
-}
-
-.feature-dialog-leave-to :deep(.coin-modal),
-.feature-dialog-leave-to :deep(.stats-modal),
-.feature-dialog-leave-to :deep(.package-modal) {
-	opacity: 0;
-	transform: translate3d(0, 10px, 0) scale(0.985);
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.feature-dialog-enter-active,
-	.feature-dialog-leave-active,
-	.feature-dialog-enter-active :deep(.coin-modal),
-	.feature-dialog-enter-active :deep(.stats-modal),
-	.feature-dialog-enter-active :deep(.package-modal),
-	.feature-dialog-leave-active :deep(.coin-modal),
-	.feature-dialog-leave-active :deep(.stats-modal),
-	.feature-dialog-leave-active :deep(.package-modal) {
-		transition-duration: 0.01ms;
-	}
-}
-
 @media screen and (max-width: 900px) {
 	.account-panel {
 		padding: 0;
@@ -1952,6 +1836,21 @@ function closeStatistics(): void {
 
 	.modal-mask {
 		padding: 10px 6px;
+	}
+
+	.modal-header {
+		min-height: 58px;
+		padding: calc(10px + var(--status-bar-height, 0px) + env(safe-area-inset-top, 0px)) 11px 10px;
+	}
+
+	.close-button {
+		position: relative;
+	}
+
+	.close-button::after {
+		content: '';
+		position: absolute;
+		inset: -6px;
 	}
 
 	.editor-modal {

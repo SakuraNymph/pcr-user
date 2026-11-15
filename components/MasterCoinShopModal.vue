@@ -293,6 +293,23 @@ function requestClose(): void {
 	align-items: center;
 	justify-content: center;
 	background: var(--mask);
+	animation: coin-modal-fade 0.22s ease-out;
+}
+
+@keyframes coin-modal-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.coin-modal-mask {
+		animation-duration: 0.01ms;
+	}
 }
 
 .coin-modal {
@@ -539,7 +556,17 @@ function requestClose(): void {
 
 	.modal-header {
 		min-height: 58px;
-		padding: 8px 11px;
+		padding: calc(8px + var(--status-bar-height, 0px) + env(safe-area-inset-top, 0px)) 11px 8px;
+	}
+
+	.close-button {
+		position: relative;
+	}
+
+	.close-button::after {
+		content: '';
+		position: absolute;
+		inset: -6px;
 	}
 
 	.modal-title {

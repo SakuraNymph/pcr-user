@@ -2094,9 +2094,9 @@ function formatDamage(damage: number): string {
 
 .three-set-empty {
 	position: relative;
-	flex: 1 1 0;
-	min-height: 0;
-	max-height: 75vh;
+	flex: 1 1 auto;
+	min-height: 240px;
+	margin-top: 12px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;

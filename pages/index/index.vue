@@ -407,6 +407,7 @@ export default defineComponent({
 			if (
 				!this.guideConfigEnabled ||
 				!this.guideDataReady ||
+				!this.filteredTeams.length ||
 				this.guideStarted ||
 				this.guideFinished
 			) {

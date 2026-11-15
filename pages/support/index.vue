@@ -11,7 +11,14 @@
 			<view class="qr-grid">
 				<view v-for="item in qrCodes" :key="item.key" class="qr-card">
 					<view class="qr-label">{{ item.label }}</view>
-					<image class="qr-image" :src="item.src" mode="widthFix" @click="openPreview(item.src)" />
+					<image
+						class="qr-image"
+						:src="item.src"
+						mode="widthFix"
+						@click="openPreview(item)"
+						@load="handleImageLoad(item)"
+						@error="handleImageError(item)"
+					/>
 					<view class="qr-tip">{{ item.tip }}</view>
 				</view>
 			</view>
@@ -32,29 +39,90 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 import MainLayout from '../../layouts/MainLayout.vue';
-import { BACKEND_ORIGIN, resolveAssetUrl } from '../../config';
+import { resolveAssetUrl } from '../../config';
 
-const qrCodes = [
-	{
-		key: 'wechat',
-		label: '微信收款码',
-		tip: '点击图片查看大图，长按保存后用微信「扫一扫」扫码支持',
-		src: resolveAssetUrl(`${BACKEND_ORIGIN}/images/others/vx.png`),
-	},
-	{
-		key: 'alipay',
-		label: '支付宝收款码',
-		tip: '点击图片查看大图，长按保存后用支付宝「扫一扫」扫码支持',
-		src: resolveAssetUrl(`${BACKEND_ORIGIN}/images/others/zfb.jpg`),
-	},
-];
+interface QrCodeItem {
+	key: string;
+	label: string;
+	tip: string;
+	serverSrc: string;
+	localSrc: string;
+	src: string;
+	fallbackUsed: boolean;
+	failed: boolean;
+}
+
+function preferredQrSrc(serverSrc: string, localSrc: string): string {
+	let src = serverSrc;
+	// #ifdef APP-PLUS
+	src = localSrc;
+	// #endif
+	return src;
+}
+
+function createQrCode(
+	key: string,
+	label: string,
+	tip: string,
+	serverPath: string,
+	localPath: string,
+): QrCodeItem {
+	const serverSrc = resolveAssetUrl(serverPath);
+	return {
+		key,
+		label,
+		tip,
+		serverSrc,
+		localSrc: localPath,
+		src: preferredQrSrc(serverSrc, localPath),
+		fallbackUsed: false,
+		failed: false,
+	};
+}
+
+const qrCodes = reactive<QrCodeItem[]>([
+	createQrCode(
+		'wechat',
+		'微信收款码',
+		'点击图片查看大图，长按保存后用微信「扫一扫」扫码支持',
+		'/images/others/wechat-pay.jpg',
+		'/static/images/others/wechat-pay.jpg',
+	),
+	createQrCode(
+		'alipay',
+		'支付宝收款码',
+		'点击图片查看大图，长按保存后用支付宝「扫一扫」扫码支持',
+		'/images/others/alipay.jpg',
+		'/static/images/others/alipay.jpg',
+	),
+]);
 
 const previewSrc = ref<string | null>(null);
 
-function openPreview(src: string): void {
-	previewSrc.value = src;
+function openPreview(item: QrCodeItem): void {
+	if (item.failed) {
+		uni.showToast({ title: '图片加载失败，请稍后重试', icon: 'none' });
+		return;
+	}
+	previewSrc.value = item.src;
+}
+
+function handleImageLoad(item: QrCodeItem): void {
+	item.failed = false;
+}
+
+function handleImageError(item: QrCodeItem): void {
+	// #ifdef APP-PLUS
+	if (!item.fallbackUsed && item.src === item.localSrc) {
+		item.fallbackUsed = true;
+		item.failed = false;
+		item.src = item.serverSrc;
+		return;
+	}
+	// #endif
+	item.failed = true;
 }
 
 function closePreview(): void {

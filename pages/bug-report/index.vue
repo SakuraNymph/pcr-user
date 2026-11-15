@@ -12,9 +12,11 @@
 				<view class="report-qr-label">QQ反馈群</view>
 				<image
 					class="report-qr-image"
-					:src="groupQrSrc"
+					:src="groupQr.src"
 					mode="widthFix"
 					@click="openPreview"
+					@load="handleImageLoad"
+					@error="handleImageError"
 				/>
 				<view class="report-qr-tip">点击图片查看大图，长按保存后使用 QQ 扫码加群</view>
 			</view>
@@ -28,25 +30,73 @@
 		>
 			<view class="preview-box" @click.stop>
 				<view class="preview-close" @click="closePreview">×</view>
-				<image class="preview-image" :src="groupQrSrc" mode="widthFix" />
+				<image class="preview-image" :src="groupQr.src" mode="widthFix" />
 			</view>
 		</view>
 	</MainLayout>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 import MainLayout from '../../layouts/MainLayout.vue';
-import { BACKEND_ORIGIN, resolveAssetUrl } from '../../config';
+import { resolveAssetUrl } from '../../config';
 
-const groupQrSrc = resolveAssetUrl(
-	`${BACKEND_ORIGIN}/images/others/${encodeURIComponent('BUG反馈群二维码.jpg')}`,
-);
+interface QrImageState {
+	serverSrc: string;
+	localSrc: string;
+	src: string;
+	fallbackUsed: boolean;
+	failed: boolean;
+}
+
+function preferredQrSrc(serverSrc: string, localSrc: string): string {
+	let src = serverSrc;
+	// #ifdef APP-PLUS
+	src = localSrc;
+	// #endif
+	return src;
+}
+
+function createQrImage(serverPath: string, localPath: string): QrImageState {
+	const serverSrc = resolveAssetUrl(serverPath);
+	return {
+		serverSrc,
+		localSrc: localPath,
+		src: preferredQrSrc(serverSrc, localPath),
+		fallbackUsed: false,
+		failed: false,
+	};
+}
+
+const groupQr = reactive<QrImageState>(createQrImage(
+	'/images/others/bug-feedback.jpg',
+	'/static/images/others/bug-feedback.jpg',
+));
 
 const previewVisible = ref(false);
 
 function openPreview(): void {
+	if (groupQr.failed) {
+		uni.showToast({ title: '图片加载失败，请稍后重试', icon: 'none' });
+		return;
+	}
 	previewVisible.value = true;
+}
+
+function handleImageLoad(): void {
+	groupQr.failed = false;
+}
+
+function handleImageError(): void {
+	// #ifdef APP-PLUS
+	if (!groupQr.fallbackUsed && groupQr.src === groupQr.localSrc) {
+		groupQr.fallbackUsed = true;
+		groupQr.failed = false;
+		groupQr.src = groupQr.serverSrc;
+		return;
+	}
+	// #endif
+	groupQr.failed = true;
 }
 
 function closePreview(): void {

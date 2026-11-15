@@ -947,6 +947,23 @@ function downloadImage(tempFilePath: string): Promise<void> {
 	align-items: center;
 	justify-content: center;
 	background: var(--mask);
+	animation: stats-modal-fade 0.22s ease-out;
+}
+
+@keyframes stats-modal-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stats-modal-mask {
+		animation-duration: 0.01ms;
+	}
 }
 
 .stats-modal {
@@ -1609,7 +1626,17 @@ function downloadImage(tempFilePath: string): Promise<void> {
 
 	.stats-header {
 		min-height: 62px;
-		padding: 9px 13px;
+		padding: calc(9px + var(--status-bar-height, 0px) + env(safe-area-inset-top, 0px)) 13px 9px;
+	}
+
+	.stats-close {
+		position: relative;
+	}
+
+	.stats-close::after {
+		content: '';
+		position: absolute;
+		inset: -6px;
 	}
 
 	.stats-title {

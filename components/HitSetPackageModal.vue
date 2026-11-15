@@ -118,6 +118,23 @@ function closeGuideOperation(): void {
 	justify-content: center;
 	background: var(--mask);
 	backdrop-filter: blur(3px);
+	animation: package-modal-fade 0.22s ease-out;
+}
+
+@keyframes package-modal-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.package-modal-mask {
+		animation-duration: 0.01ms;
+	}
 }
 
 .package-modal {
@@ -193,6 +210,11 @@ function closeGuideOperation(): void {
 	background: linear-gradient(145deg, var(--bg-content-start) 0%, var(--bg-content-end) 100%);
 }
 
+/* 让套餐内容层撑满滚动区域，空状态才能在剩余高度内垂直居中。 */
+.package-modal-body :deep(.three-set-page) {
+	min-height: 100%;
+}
+
 @media screen and (max-width: 700px) {
 	.package-modal-mask {
 		padding: 0;
@@ -206,9 +228,21 @@ function closeGuideOperation(): void {
 	}
 
 	.package-modal-header {
-		min-height: 58px;
-		padding: 0 10px;
+		flex: 0 0 auto;
+		min-height: 64px;
+		padding: calc(12px + var(--status-bar-height, 0px) + env(safe-area-inset-top, 0px)) 12px 10px;
 		gap: 10px;
+	}
+
+	/* 保持 34px 视觉尺寸，仅向下扩展点击热区，方便拇指点击。 */
+	.package-modal-close {
+		position: relative;
+	}
+
+	.package-modal-close::after {
+		content: '';
+		position: absolute;
+		inset: -6px;
 	}
 
 	.package-modal-heading {
