@@ -18,7 +18,7 @@
 - 使用 uni-app 和 Vue 3。
 - 当前项目采用 HBuilderX 开发方式；`package.json` 只包含类型依赖，没有应用脚本或 uni-app CLI 构建配置。
 - 不要擅自引入 Vite、Webpack、新的包管理器或另一套 uni-app 脚手架。
-- `manifest.json` 当前声明 `vueVersion: "3"`，App 和小程序 appid 仍为空。
+- `manifest.json` 当前声明 `vueVersion: "3"`；DCloud 应用标识与微信小程序 AppID 已配置，其他小程序平台的 appid 仍未配置。具体值不在文档中重复。
 - 具体页面通过 `pages.json` 注册；当前没有 tabBar 和分包配置。
 - TypeScript 当前 `strict: false`；不要在没有需求时进行全项目严格模式迁移。
 
@@ -112,7 +112,7 @@
 
 ## 待核实事项
 
-- `manifest.json` 的 appid、模块和 SDK 配置仍为空，正式打包参数尚未确认。
+- `manifest.json` 的微信小程序 AppID 已配置；模块和 SDK 配置仍为空，正式打包参数尚未完全确认。
 - API 基础地址是硬编码地址，尚未看到按环境切换机制。
 - H5 实际开发端口与 Laravel CORS 的完整对应关系尚未验证。
 - 正式用户 Token 过期后，本地 `authState` 可能仍显示已登录，直到后续接口失败。
