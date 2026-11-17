@@ -4,3 +4,20 @@ node_modules/
 .hbuilderx/
 
 dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Certificates and keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Local H5 build archives
+h5-dist.zip
+h5-dist.tar.gz
