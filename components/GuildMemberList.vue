@@ -21,7 +21,7 @@
 					<text v-if="member.uid === viewerUid" class="guild-member-self">我</text>
 				</view>
 				<view class="guild-member-meta">
-					<text>UID {{ member.uid }}</text>
+					<text>UID {{ member.public_uid }}</text>
 					<text>{{ member.role_name }}</text>
 				</view>
 			</view>

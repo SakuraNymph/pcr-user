@@ -33,7 +33,7 @@
 			</view>
 
 			<view class="guild-summary-meta">
-				<text>会长：{{ guild.owner_nickname || `UID ${guild.owner_uid}` }}</text>
+				<text>会长：{{ guild.owner_nickname || `UID ${guild.owner_public_uid}` }}</text>
 				<text>{{ guild.member_count }} / {{ GUILD_CAPACITY }} 人</text>
 				<text v-if="guild.pending_invitation_count">
 					{{ guild.pending_invitation_count }} 个邀请预留

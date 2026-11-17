@@ -213,7 +213,7 @@ const profileVisible = ref(false);
 const inviteVisible = ref(false);
 const actionPending = ref(false);
 
-const viewerUid = computed(() => Number(authState.user?.id || 0));
+const viewerUid = computed(() => Number(authState.user?.public_uid || 0));
 const applyTitle = computed(() => {
 	if (!detail.value) return '申请加入';
 	if (detail.value.viewer_application) return '已申请，等待审核';
@@ -339,7 +339,7 @@ function handleInvitationSent(_invitation: GuildInvitation): void {
 function handleAppointVice(member: GuildMemberSummary): void {
 	confirmAction(
 		'任命副会长',
-		`确认任命 ${member.nickname || `UID ${member.uid}`} 为副会长？`,
+		`确认任命 ${member.nickname || `UID ${member.public_uid}`} 为副会长？`,
 		async () => {
 			detail.value = await appointGuildVice(guildId.value, member.uid);
 			uni.showToast({ title: '任命成功', icon: 'success' });
@@ -350,7 +350,7 @@ function handleAppointVice(member: GuildMemberSummary): void {
 function handleRevokeVice(member: GuildMemberSummary): void {
 	confirmAction(
 		'撤销副会长',
-		`确认撤销 ${member.nickname || `UID ${member.uid}`} 的副会长身份？`,
+		`确认撤销 ${member.nickname || `UID ${member.public_uid}`} 的副会长身份？`,
 		async () => {
 			detail.value = await revokeGuildVice(guildId.value, member.uid);
 			uni.showToast({ title: '已撤销副会长', icon: 'success' });
@@ -361,7 +361,7 @@ function handleRevokeVice(member: GuildMemberSummary): void {
 function handleKick(member: GuildMemberSummary): void {
 	confirmAction(
 		'移出成员',
-		`确认将 ${member.nickname || `UID ${member.uid}`} 移出公会？该成员将立即失去公会访问权限。`,
+		`确认将 ${member.nickname || `UID ${member.public_uid}`} 移出公会？该成员将立即失去公会访问权限。`,
 		async () => {
 			await kickGuildMember(guildId.value, member.uid);
 			await loadDetail();
@@ -374,7 +374,7 @@ function handleKick(member: GuildMemberSummary): void {
 function handleTransfer(member: GuildMemberSummary): void {
 	confirmAction(
 		'转让会长',
-		`确认把会长转让给 ${member.nickname || `UID ${member.uid}`}？转让后你将变为普通成员。`,
+		`确认把会长转让给 ${member.nickname || `UID ${member.public_uid}`}？转让后你将变为普通成员。`,
 		async () => {
 			detail.value = await transferGuildOwner(guildId.value, member.uid);
 			uni.showToast({ title: '会长转让成功', icon: 'success' });

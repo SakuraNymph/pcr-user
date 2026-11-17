@@ -143,7 +143,7 @@ const clearPending = ref(false);
 const copyVisible = ref(false);
 let scheduleRequestSequence = 0;
 
-const viewerUid = computed(() => Number(authState.user?.id || 0));
+const viewerUid = computed(() => Number(authState.user?.public_uid || 0));
 const monthLabels = computed(() => (
 	schedule.value?.available_months.map((month) => formatGuildMonth(month)) || []
 ));

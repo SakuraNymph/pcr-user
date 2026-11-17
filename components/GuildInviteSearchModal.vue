@@ -42,7 +42,7 @@
 					</view>
 					<view class="candidate-copy">
 						<view class="candidate-name">{{ candidate.nickname || '未找到用户' }}</view>
-						<view class="candidate-meta">UID {{ candidate.uid }}</view>
+						<view class="candidate-meta">UID {{ candidate.public_uid }}</view>
 						<view
 							class="candidate-state"
 							:class="{ eligible: candidate.eligible }"

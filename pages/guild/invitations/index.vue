@@ -82,15 +82,15 @@
 							<view class="invitation-title">
 								{{ activeTab === 'received'
 									? invitation.guild_name || '未知公会'
-									: invitation.invitee_nickname || `UID ${invitation.invitee_uid}` }}
+									: invitation.invitee_nickname || `UID ${invitation.invitee_public_uid}` }}
 							</view>
 							<view class="invitation-meta">
 								<template v-if="activeTab === 'received'">
-									<text>邀请人：{{ invitation.inviter_nickname || `UID ${invitation.inviter_uid}` }}</text>
+									<text>邀请人：{{ invitation.inviter_nickname || `UID ${invitation.inviter_public_uid}` }}</text>
 									<text>邀请时间：{{ formatGuildDate(invitation.created_at) }}</text>
 								</template>
 								<template v-else>
-									<text>UID {{ invitation.invitee_uid }}</text>
+									<text>UID {{ invitation.invitee_public_uid }}</text>
 									<text>邀请时间：{{ formatGuildDate(invitation.created_at) }}</text>
 									<text>状态：{{ invitation.status_name }}</text>
 								</template>
@@ -241,7 +241,7 @@ function revokeInvitation(invitation: GuildInvitation): void {
 
 	uni.showModal({
 		title: '撤销邀请',
-		content: `确认撤销发给 ${invitation.invitee_nickname || `UID ${invitation.invitee_uid}`} 的邀请？`,
+		content: `确认撤销发给 ${invitation.invitee_nickname || `UID ${invitation.invitee_public_uid}`} 的邀请？`,
 		confirmText: '确认撤销',
 		confirmColor: '#f06a73',
 		success: async (result) => {

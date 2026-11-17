@@ -107,6 +107,7 @@ export interface GuildSummary {
 	description: string;
 	avatar_url: string | null;
 	owner_uid: number;
+	owner_public_uid?: number | null;
 	owner_nickname: string | null;
 	member_count: number;
 	pending_invitation_count: number;
@@ -126,6 +127,7 @@ export interface GuildMembership {
 
 export interface GuildMemberSummary {
 	uid: number;
+	public_uid: number | null;
 	nickname: string | null;
 	avatar_url: string | null;
 	role: GuildRole;
@@ -163,6 +165,7 @@ export interface GuildApplication {
 	id: number;
 	guild_id: number;
 	applicant_uid: number;
+	applicant_public_uid: number | null;
 	applicant_nickname: string | null;
 	applicant_avatar_url: string | null;
 	status: number;
@@ -198,8 +201,10 @@ export interface GuildInvitation {
 	guild_name: string | null;
 	guild_avatar_url: string | null;
 	inviter_uid: number;
+	inviter_public_uid: number | null;
 	inviter_nickname: string | null;
 	invitee_uid: number;
+	invitee_public_uid: number | null;
 	invitee_nickname: string | null;
 	status: number;
 	status_name: string;
@@ -214,6 +219,7 @@ export interface GuildInvitationList {
 
 export interface GuildInvitationCandidate {
 	uid: number;
+	public_uid: number;
 	nickname: string | null;
 	avatar_url: string | null;
 	eligible: boolean;
@@ -237,6 +243,7 @@ export interface GuildScheduleSlot {
 
 export interface GuildScheduleMember {
 	uid: number;
+	public_uid: number | null;
 	nickname: string | null;
 	role: GuildRole;
 	role_name: string;

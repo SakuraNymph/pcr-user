@@ -58,16 +58,16 @@
 							mode="aspectFill"
 						/>
 						<text v-else>
-							{{ guildAvatarText(application.applicant_nickname || `UID ${application.applicant_uid}`) }}
+							{{ guildAvatarText(application.applicant_nickname || `UID ${application.applicant_public_uid}`) }}
 						</text>
 					</view>
 
 					<view class="application-copy">
 						<view class="application-title">
-							{{ application.applicant_nickname || `UID ${application.applicant_uid}` }}
+							{{ application.applicant_nickname || `UID ${application.applicant_public_uid}` }}
 						</view>
 						<view class="application-meta">
-							<text>UID {{ application.applicant_uid }}</text>
+							<text>UID {{ application.applicant_public_uid }}</text>
 							<text>申请时间：{{ formatGuildDate(application.created_at) }}</text>
 							<text>有效期至：{{ formatGuildDate(application.expires_at) }}</text>
 							<text>状态：{{ application.status_name }}</text>
@@ -184,7 +184,7 @@ function approveApplication(application: GuildApplication): void {
 
 	uni.showModal({
 		title: '同意加入申请',
-		content: `确认同意 ${application.applicant_nickname || `UID ${application.applicant_uid}`} 加入公会？对方将立即获得公会访问权限。`,
+		content: `确认同意 ${application.applicant_nickname || `UID ${application.applicant_public_uid}`} 加入公会？对方将立即获得公会访问权限。`,
 		confirmText: '确认同意',
 		success: async (result) => {
 			if (!result.confirm) return;
@@ -210,7 +210,7 @@ function rejectApplication(application: GuildApplication): void {
 
 	uni.showModal({
 		title: '拒绝加入申请',
-		content: `确认拒绝 ${application.applicant_nickname || `UID ${application.applicant_uid}`} 的加入申请？对方之后仍可重新申请。`,
+		content: `确认拒绝 ${application.applicant_nickname || `UID ${application.applicant_public_uid}`} 的加入申请？对方之后仍可重新申请。`,
 		confirmText: '确认拒绝',
 		confirmColor: '#f06a73',
 		success: async (result) => {

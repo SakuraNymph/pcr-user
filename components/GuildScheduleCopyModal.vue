@@ -209,7 +209,7 @@ const canCopy = computed(() => (
 ));
 
 function memberLabel(member: GuildScheduleMember): string {
-	return `${member.nickname || `UID ${member.uid}`}（${member.role_name}）`;
+	return `${member.nickname || `UID ${member.public_uid}`}（${member.role_name}）`;
 }
 
 function slotName(slot: GuildScheduleSlot): string {
