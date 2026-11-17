@@ -262,6 +262,33 @@ function close(): void {
 	font-weight: 700;
 }
 
+.boss-tab {
+	position: relative;
+	overflow: hidden;
+	opacity: 0.62;
+	transition: opacity 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.boss-tab::after {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba(0, 6, 14, 0.32);
+	content: '';
+	pointer-events: none;
+	transition: opacity 0.16s ease;
+}
+
+.boss-tab.active {
+	opacity: 1;
+}
+
+.boss-tab.active::after {
+	opacity: 0;
+}
+
 .team-picker-body {
 	min-height: 0;
 	flex: 1;

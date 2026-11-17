@@ -1503,7 +1503,20 @@ function formatDamage(damage: number): string {
 	border-radius: 7px;
 	background: var(--bg-subtle);
 	cursor: pointer;
-	transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+	opacity: 0.55;
+	transition: opacity 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.three-set-boss-option::after {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba(0, 6, 14, 0.4);
+	content: '';
+	pointer-events: none;
+	transition: opacity 0.16s ease;
 }
 
 .three-set-boss-option:hover {
@@ -1511,9 +1524,14 @@ function formatDamage(damage: number): string {
 }
 
 .three-set-boss-option.selected {
+	opacity: 1;
 	border: 2px solid #168cff;
 	background: #087df5;
 	box-shadow: 0 0 13px rgba(0, 119, 255, 0.7);
+}
+
+.three-set-boss-option.selected::after {
+	opacity: 0;
 }
 
 .three-set-boss-thumb {
@@ -1522,14 +1540,6 @@ function formatDamage(damage: number): string {
 	display: block;
 	border-radius: 5px;
 	background: var(--bg-subtle);
-}
-
-.three-set-boss-option:not(.selected) .three-set-boss-thumb {
-	filter: grayscale(1) brightness(0.62);
-}
-
-.three-set-boss-option.selected .three-set-boss-thumb {
-	filter: none;
 }
 
 .three-set-boss-placeholder {

@@ -25,8 +25,8 @@ import { themeState } from '../theme';
 }
 
 .auth-topbar {
-	min-height: 70px;
-	padding: 0 28px;
+	min-height: calc(70px + var(--status-bar-height, 0px));
+	padding: var(--status-bar-height, 0px) 28px 0;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -58,8 +58,8 @@ import { themeState } from '../theme';
 
 @media screen and (max-width: 700px) {
 	.auth-topbar {
-		min-height: 60px;
-		padding: 0 16px;
+		min-height: calc(60px + var(--status-bar-height, 0px));
+		padding: var(--status-bar-height, 0px) 16px 0;
 	}
 
 	.auth-card {

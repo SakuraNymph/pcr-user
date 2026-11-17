@@ -175,11 +175,11 @@ onBeforeUnmount(() => {
 
 <style>
 .top-header {
-	height: 74px;
+	height: calc(74px + var(--status-bar-height, 0px));
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0 28px;
+	padding: var(--status-bar-height, 0px) 28px 0;
 	background:
 		linear-gradient(90deg, rgba(0, 16, 40, 0.58), rgba(0, 36, 80, 0.2) 48%, rgba(0, 16, 40, 0.62)),
 		url('/static/images/top-banner.png') center center / cover no-repeat;
@@ -403,10 +403,10 @@ onBeforeUnmount(() => {
 		position: sticky;
 		top: 0;
 		z-index: 100;
-		min-height: 60px;
+		min-height: calc(60px + var(--status-bar-height, 0px));
 		height: auto;
 		flex-wrap: wrap;
-		padding: 0 12px;
+		padding: var(--status-bar-height, 0px) 12px 0;
 	}
 
 	.header-navigation {
@@ -465,7 +465,7 @@ onBeforeUnmount(() => {
 		grid-template-columns: minmax(0, 1fr) auto;
 		grid-template-rows: 74px 64px;
 		align-items: center;
-		padding: 0 18px;
+		padding: var(--status-bar-height, 0px) 18px 0;
 	}
 
 	.brand {

@@ -33,7 +33,7 @@ defineProps<{ activeMenu: string }>();
 
 .main-layout {
 	display: flex;
-	min-height: calc(100vh - 74px);
+	min-height: calc(100vh - 74px - var(--status-bar-height, 0px));
 }
 
 .content {
@@ -58,13 +58,13 @@ defineProps<{ activeMenu: string }>();
 
 @media screen and (min-width: 701px) and (max-width: 1000px) {
 	.main-layout {
-		min-height: calc(100vh - 138px);
+		min-height: calc(100vh - 138px - var(--status-bar-height, 0px));
 	}
 }
 
 @media screen and (max-width: 700px) {
 	.main-layout {
-		min-height: calc(100vh - 60px);
+		min-height: calc(100vh - 60px - var(--status-bar-height, 0px));
 	}
 
 	.content {

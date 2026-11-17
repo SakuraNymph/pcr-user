@@ -1,6 +1,6 @@
 <template>
 	<MainLayout active-menu="profile">
-		<view class="profile-page">
+		<view class="profile-page" :class="{ 'is-guest': !authState.isAuthenticated }">
 			<view class="profile-panel">
 				<view class="profile-heading">
 					<view>
@@ -586,6 +586,17 @@ function closeModals(): void {
 }
 
 @media screen and (max-width: 700px) {
+	.profile-page.is-guest {
+		flex: 1 0 auto;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.profile-page.is-guest .profile-panel {
+		margin-top: auto;
+		margin-bottom: auto;
+	}
+
 	.profile-panel {
 		min-height: 420px;
 		padding: 16px;

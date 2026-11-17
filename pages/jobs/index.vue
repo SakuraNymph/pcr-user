@@ -1379,6 +1379,7 @@ export default defineComponent({
 	height: 22px;
 }
 .boss-item {
+	position: relative;
 	width: 97px;
 	height: 88px;
 	flex: 1;
@@ -1389,16 +1390,32 @@ export default defineComponent({
 	background: var(--bg-subtle);
 	cursor: pointer;
 	text-align: center;
+	opacity: 0.55;
+	transition: opacity 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.boss-item::after {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba(0, 6, 14, 0.4);
+	content: '';
+	pointer-events: none;
+	transition: opacity 0.16s ease;
 }
 .boss-item.selected {
+	opacity: 1;
 	border: 2px solid #168cff;
 	box-shadow: 0 0 13px rgba(0, 119, 255, 0.7);
+}
+.boss-item.selected::after {
+	opacity: 0;
 }
 .boss-image {
 	display: block;
 	width: 100%;
 	height: 58px;
-	filter: grayscale(1) brightness(0.62);
 }
 .boss-image-placeholder {
 	display: flex;
@@ -1411,9 +1428,6 @@ export default defineComponent({
 	font-weight: 700;
 	letter-spacing: 0.02em;
 	white-space: nowrap;
-}
-.boss-item.selected .boss-image {
-	filter: none;
 }
 .boss-name {
 	height: 28px;
@@ -2334,6 +2348,7 @@ export default defineComponent({
 		font-size: 9px;
 	}
 	.difficulty-group .option-list {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 4px;
 	}
 	.attack-group .option-list {
