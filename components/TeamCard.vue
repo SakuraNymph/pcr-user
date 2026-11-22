@@ -568,11 +568,11 @@ function isDisabled(role: TeamRole, index: number): boolean {
 	background: var(--bg-panel-soft-alt);
 }
 .link-difficulty-3 {
-	border-color: rgba(207, 151, 66, 0.44);
+	border-color: rgba(157, 112, 255, 0.43);
 	background: var(--difficulty-3-bg);
 }
 .link-difficulty-4 {
-	border-color: rgba(157, 112, 255, 0.43);
+	border-color: rgba(207, 151, 66, 0.44);
 	background: var(--difficulty-4-bg);
 }
 .link-difficulty-5 {

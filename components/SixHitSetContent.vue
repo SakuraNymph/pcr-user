@@ -2550,8 +2550,8 @@ function formatDamage(damage: number): string {
 
 .three-set-link-row.link-difficulty-1 { border-color: rgba(48, 190, 142, 0.42); background: var(--difficulty-1-bg); }
 .three-set-link-row.link-difficulty-2 { border-color: rgba(54, 146, 255, 0.42); background: var(--bg-panel-soft-alt); }
-.three-set-link-row.link-difficulty-3 { border-color: rgba(207, 151, 66, 0.44); background: var(--difficulty-3-bg); }
-.three-set-link-row.link-difficulty-4 { border-color: rgba(157, 112, 255, 0.43); background: var(--difficulty-4-bg); }
+.three-set-link-row.link-difficulty-3 { border-color: rgba(157, 112, 255, 0.43); background: var(--difficulty-3-bg); }
+.three-set-link-row.link-difficulty-4 { border-color: rgba(207, 151, 66, 0.44); background: var(--difficulty-4-bg); }
 .three-set-link-row.link-difficulty-5 { border-color: rgba(207, 76, 126, 0.48); background: var(--difficulty-5-bg); }
 .three-set-link-row.link-difficulty-0 { border-color: var(--border-default); background: var(--bg-panel-soft); }
 

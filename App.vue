@@ -83,8 +83,8 @@ input {
 	--mask: rgba(0, 7, 18, 0.78);
 	--table-header: rgba(12, 47, 82, 0.92);
 	--difficulty-1-bg: rgba(7, 62, 58, 0.66);
-	--difficulty-3-bg: rgba(70, 52, 24, 0.66);
-	--difficulty-4-bg: rgba(46, 34, 80, 0.68);
+	--difficulty-3-bg: rgba(46, 34, 80, 0.68);
+	--difficulty-4-bg: rgba(70, 52, 24, 0.66);
 	--difficulty-5-bg: rgba(68, 27, 51, 0.7);
 	--header-text: #fff;
 	--header-subtitle: #a9d0ff;
@@ -132,8 +132,8 @@ input {
 	--mask: rgba(18, 37, 58, 0.42);
 	--table-header: #e4f1ff;
 	--difficulty-1-bg: #d8f7ee;
-	--difficulty-3-bg: #fff1d6;
-	--difficulty-4-bg: #eee6ff;
+	--difficulty-3-bg: #eee6ff;
+	--difficulty-4-bg: #fff1d6;
 	--difficulty-5-bg: #ffe4eb;
 	--header-text: #fff;
 	--header-subtitle: #d8edff;

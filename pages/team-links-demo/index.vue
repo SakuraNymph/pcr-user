@@ -705,13 +705,13 @@ function openLink(team: DemoTeam, link: DemoLink): void {
 }
 
 .tone-switch {
-	border-color: rgba(207, 151, 66, 0.5);
-	background: rgba(70, 52, 24, 0.74);
+	border-color: rgba(157, 112, 255, 0.48);
+	background: rgba(46, 34, 80, 0.76);
 }
 
 .tone-easy {
-	border-color: rgba(157, 112, 255, 0.48);
-	background: rgba(46, 34, 80, 0.76);
+	border-color: rgba(207, 151, 66, 0.5);
+	background: rgba(70, 52, 24, 0.74);
 }
 
 .tone-manual {

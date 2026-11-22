@@ -5,6 +5,10 @@
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
+    /* uni统计 2.0：本应用未使用，项目级关闭 */
+    "uniStatistics" : {
+        "enable" : false
+    },
     /* 5+App特有相关 */
     "app-plus" : {
         "usingComponents" : true,
@@ -49,9 +53,9 @@
             "splashscreen" : {
                 "androidStyle" : "default",
                 "android" : {
-                    "xxhdpi" : "app-assets/homeworkdirartifactsicon_1080x1882-3.png",
-                    "hdpi" : "app-assets/homeworkdirartifactsicon_480x762-1.png",
-                    "xhdpi" : "app-assets/homeworkdirartifactsicon_720x1242-2.png"
+                    "xxhdpi" : "app-assets/homeworkdirartifactspcr_splash_1080x1882_v2.png",
+                    "hdpi" : "app-assets/homeworkdirartifactspcr_splash_480x762.png",
+                    "xhdpi" : "app-assets/homeworkdirartifactspcr_splash_720x1242.png"
                 }
             },
             "icons" : {
