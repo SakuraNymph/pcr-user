@@ -267,7 +267,7 @@ watch(() => links.value.length, () => {
 });
 
 const difficultyNames: Record<number, string> = {
-	1: '纯 AUTO', 2: '简单 SET', 3: '开关 SET', 4: '简单目押', 5: '目押',
+	1: 'AUTO', 2: '简单 SET', 3: '开关 SET', 4: '简单目押', 5: '目押',
 };
 const modeNames: Record<number, string> = {
 	1: 'Auto',

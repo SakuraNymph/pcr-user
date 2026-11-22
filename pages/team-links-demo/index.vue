@@ -203,7 +203,7 @@ const roleSets: DemoRole[][] = [
 ];
 
 const linkTemplates: Array<{ difficulty: string; tone: LinkTone }> = [
-	{ difficulty: '纯 AUTO', tone: 'auto' },
+	{ difficulty: 'AUTO', tone: 'auto' },
 	{ difficulty: '简单 SET', tone: 'set' },
 	{ difficulty: '开关 SET', tone: 'switch' },
 	{ difficulty: '简单目押', tone: 'easy' },

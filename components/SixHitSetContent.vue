@@ -1397,7 +1397,7 @@ function stageName(stage: number): string {
 }
 
 function difficultyName(difficulty: number): string {
-	return ['未设置', '纯 AUTO', '简单 SET', '开关 SET', '简单目押', '目押'][difficulty] || '未设置';
+	return ['未设置', 'AUTO', '简单 SET', '开关 SET', '简单目押', '目押'][difficulty] || '未设置';
 }
 
 function formatDamage(damage: number): string {
