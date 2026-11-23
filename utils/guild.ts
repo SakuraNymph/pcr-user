@@ -1,5 +1,6 @@
 import type {
 	GuildCapacityStatus,
+	GuildSchedule,
 	GuildScheduleMember,
 	GuildScheduleSlot,
 	GuildScheduleTeamSnapshot,
@@ -88,6 +89,76 @@ export function findScheduleSlot(
 	key: string,
 ): GuildScheduleSlot | undefined {
 	return member.slots.find((slot) => slot.key === key);
+}
+
+export interface GuildScheduleBossCount {
+	key: string;
+	stage: 2 | 3;
+	boss: number;
+	count: number;
+	target: number;
+}
+
+export type GuildScheduleBossCountTone = 'under' | 'on-target' | 'over';
+
+const GUILD_SCHEDULE_BOSS_TARGETS: Record<2 | 3, number> = {
+	2: 6,
+	3: 16,
+};
+
+export function guildScheduleBossCountTone(
+	count: number,
+	target: number,
+): GuildScheduleBossCountTone {
+	if (count < target) return 'under';
+	if (count === target) return 'on-target';
+	return 'over';
+}
+
+export function countGuildSchedule(
+	schedule?: Pick<GuildSchedule, 'members'> | null,
+): GuildScheduleBossCount[] {
+	const counts: GuildScheduleBossCount[] = [];
+	([2, 3] as const).forEach((stage) => {
+		for (let boss = 1; boss <= 5; boss += 1) {
+			counts.push({
+				key: `${stage === 2 ? 'B' : 'C'}${boss}`,
+				stage,
+				boss,
+				count: 0,
+				target: GUILD_SCHEDULE_BOSS_TARGETS[stage],
+			});
+		}
+	});
+
+	(schedule?.members || []).forEach((member) => {
+		(member.slots || []).forEach((slot) => {
+			const team = slot.team;
+			if (
+				slot.team_id === null
+				|| !team
+				|| slot.deleted === true
+				|| team.deleted === true
+			) return;
+
+			const stage = Number(team.stage);
+			const boss = Number(team.boss);
+			if (
+				!Number.isInteger(stage)
+				|| (stage !== 2 && stage !== 3)
+				|| !Number.isInteger(boss)
+				|| boss < 1
+				|| boss > 5
+			) return;
+
+			const item = counts.find(
+				(entry) => entry.stage === stage && entry.boss === boss,
+			);
+			if (item) item.count += 1;
+		});
+	});
+
+	return counts;
 }
 
 export function guildAvatarText(name?: string | null): string {

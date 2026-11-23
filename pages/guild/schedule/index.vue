@@ -86,6 +86,54 @@
 					当前正在查看历史月份。历史排刀对所有成员只读，会长和副会长也不能修改或清空。
 				</view>
 
+				<view class="boss-count-panel">
+					<view class="boss-count-head">
+						<view class="boss-count-title">B/C 阶段排刀统计</view>
+						<view class="boss-count-legend">
+							<text>B 目标 6 刀 · C 目标 16 刀</text>
+							<text class="legend-item legend-under">不足</text>
+							<text class="legend-item legend-on-target">达标</text>
+							<text class="legend-item legend-over">超出</text>
+						</view>
+					</view>
+					<view class="boss-count-groups">
+						<view class="boss-count-group">
+							<view class="boss-count-group-title">B 阶段</view>
+							<view class="boss-count-grid">
+								<view
+									v-for="item in bBossCounts"
+									:key="item.key"
+									class="boss-count-item"
+								>
+									<text class="boss-count-name">{{ item.key }}</text>
+									<text
+										class="boss-count-value"
+										:class="`tone-${guildScheduleBossCountTone(item.count, item.target)}`"
+									>{{ item.count }}</text>
+									<text class="boss-count-unit">刀</text>
+								</view>
+							</view>
+						</view>
+						<view class="boss-count-group">
+							<view class="boss-count-group-title">C 阶段</view>
+							<view class="boss-count-grid">
+								<view
+									v-for="item in cBossCounts"
+									:key="item.key"
+									class="boss-count-item"
+								>
+									<text class="boss-count-name">{{ item.key }}</text>
+									<text
+										class="boss-count-value"
+										:class="`tone-${guildScheduleBossCountTone(item.count, item.target)}`"
+									>{{ item.count }}</text>
+									<text class="boss-count-unit">刀</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+
 				<GuildScheduleQuickPanel
 					:schedule="schedule"
 					:guild-id="guildId"
@@ -129,8 +177,10 @@ import { errorMessage } from '../../../api/errors';
 import { authState } from '../../../api/identity';
 import type { GuildSchedule } from '../../../api/types';
 import {
+	countGuildSchedule,
 	formatGuildMonth,
 	guildAvatarText,
+	guildScheduleBossCountTone,
 } from '../../../utils/guild';
 import { navigateTo, routes } from '../../../router';
 
@@ -157,6 +207,9 @@ const canShiftPrevious = computed(() => {
 	return monthIndex.value < months.length - 1;
 });
 const canShiftNext = computed(() => monthIndex.value > 0);
+const bossCounts = computed(() => countGuildSchedule(schedule.value));
+const bBossCounts = computed(() => bossCounts.value.filter((item) => item.stage === 2));
+const cBossCounts = computed(() => bossCounts.value.filter((item) => item.stage === 3));
 
 onLoad((query) => {
 	const id = Number(query?.id || 0);
@@ -520,6 +573,113 @@ function confirmClear(): void {
 	line-height: 1.55;
 }
 
+.boss-count-panel {
+	margin-top: 10px;
+	padding: 12px 14px;
+	border: 1px solid var(--border-default);
+	border-radius: 9px;
+	background: var(--bg-panel-soft);
+}
+
+.boss-count-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 6px 12px;
+}
+
+.boss-count-title {
+	color: var(--text-primary);
+	font-size: 13px;
+	font-weight: 800;
+}
+
+.boss-count-legend {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+	color: var(--text-faint);
+	font-size: 10px;
+}
+
+.legend-item {
+	font-weight: 700;
+}
+
+.legend-under,
+.tone-under {
+	color: var(--warning);
+}
+
+.legend-on-target,
+.tone-on-target {
+	color: var(--success);
+}
+
+.legend-over,
+.tone-over {
+	color: var(--danger);
+}
+
+.boss-count-groups {
+	margin-top: 10px;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.boss-count-group {
+	padding: 8px 10px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 7px;
+	background: var(--bg-panel-soft-alt);
+}
+
+.boss-count-group-title {
+	color: var(--text-muted);
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.boss-count-grid {
+	margin-top: 7px;
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.boss-count-item {
+	min-width: 0;
+	padding: 7px 4px;
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 2px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	background: var(--bg-panel-alt);
+}
+
+.boss-count-name {
+	color: var(--text-muted);
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.boss-count-value {
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1;
+}
+
+.boss-count-unit {
+	color: var(--text-faint);
+	font-size: 9px;
+}
+
 @keyframes schedule-spin {
 	to {
 		transform: rotate(360deg);
@@ -568,6 +728,22 @@ function confirmClear(): void {
 		padding: 0 6px;
 		justify-content: center;
 		white-space: nowrap;
+	}
+
+	.boss-count-groups {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.boss-count-grid {
+		gap: 5px;
+	}
+
+	.boss-count-item {
+		padding: 6px 2px;
+	}
+
+	.boss-count-value {
+		font-size: 15px;
 	}
 }
 </style>
